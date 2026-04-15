@@ -570,6 +570,7 @@ import '../../widgets/common/empty_state_widget.dart';
 import 'widgets/scanned_doc_card.dart';
 import 'widgets/ocr_progress_card.dart';
 import '../../../core/services/ocr_service.dart';
+import 'ocr_review_screen.dart';
 
 class DocumentsScreen extends ConsumerStatefulWidget {
   DocumentsScreen({super.key});
@@ -909,9 +910,64 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
     if (result == null) return;
 
     final ocrState = ref.read(ocrProvider);
+
+    // ── LOW CONFIDENCE => REVIEW SCREEN ───────────────────
+    if (ocrState.needsReview) {
+      if (!mounted) return;
+
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => OcrReviewScreen(
+            result: result,
+            onConfirm: ({
+              required String docType,
+              required String dateOfBirth,
+              required String university,
+              required String percentage,
+              required String passingYear,
+              required String extractedName,
+            }) async {
+              final user = ref.read(currentUserProvider);
+              if (user != null) {
+                await ref.read(profileNotifierProvider.notifier).updateFromOcr(
+                      uid: user.uid,
+                      docType: docType,
+                      dateOfBirth: dateOfBirth,
+                      university: university,
+                      percentage: percentage,
+                      passingYear: passingYear,
+                      extractedName: extractedName,
+                      primaryExamGoal: result.examName,
+                    );
+              }
+            },
+          ),
+        ),
+      );
+
+      ref.read(ocrProvider.notifier).markReviewed();
+      ref.read(ocrProvider.notifier).reset();
+
+      if (mounted) {
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Reviewed and saved successfully.',
+              style: TextStyle(fontFamily: 'Poppins', color: Colors.white),
+            ),
+            backgroundColor: context.colors.eligible,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+
+    // ── HIGH CONFIDENCE => DIRECT SAVE ───────────────────
     final attemptLogged = await _autoLogAttemptFromAdmitCard(result);
 
-    // OCR result -> Profile auto-fill
     if (result.dateOfBirth.isNotEmpty ||
         result.aggregate.isNotEmpty ||
         result.candidateName.isNotEmpty) {
@@ -938,41 +994,28 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
     if (!mounted) return;
     setState(() {});
 
-    if (ocrState.needsReview) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Document scanned but needs review. Confidence: ${(result.confidence * 100).toInt()}%',
-            style: const TextStyle(fontFamily: 'Poppins', color: Colors.white),
-          ),
-          backgroundColor: context.colors.urgencyMedium,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  result.docType.isNotEmpty
-                      ? '${result.docType.toUpperCase()} document scanned! Confidence: ${(result.confidence * 100).toInt()}%'
-                          '${attemptLogged ? ' | Attempt auto-logged' : ''}'
-                      : 'Document scanned successfully!',
-                  style: const TextStyle(fontFamily: 'Poppins', color: Colors.white),
-                ),
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                result.docType.isNotEmpty
+                    ? '${result.docType.toUpperCase()} document scanned! Confidence: ${(result.confidence * 100).toInt()}%'
+                        '${attemptLogged ? ' | Attempt auto-logged' : ''}'
+                    : 'Document scanned successfully!',
+                style: const TextStyle(fontFamily: 'Poppins', color: Colors.white),
               ),
-            ],
-          ),
-          backgroundColor: context.colors.eligible,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ],
         ),
-      );
-    }
+        backgroundColor: context.colors.eligible,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
 
     ref.read(ocrProvider.notifier).reset();
   }

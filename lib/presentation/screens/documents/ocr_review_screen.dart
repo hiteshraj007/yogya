@@ -4,7 +4,7 @@ import '../../../core/services/ocr_profile_validator.dart';
 
 class OcrReviewScreen extends StatefulWidget {
   final OcrResult result;
-  final void Function({
+  final Future<void> Function({
     required String docType,
     required String dateOfBirth,
     required String university,
@@ -31,6 +31,7 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
   late final TextEditingController _score;
 
   String? _error;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -52,12 +53,17 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
+    if (_isSaving) return;
+
     final isGrad = widget.result.docType == 'graduation';
 
     final e1 = OcrProfileValidator.validateDob(_dob.text);
     final e2 = OcrProfileValidator.validateYear(_year.text);
-    final e3 = OcrProfileValidator.validatePercentageOrCgpa(_score.text, isGraduation: isGrad);
+    final e3 = OcrProfileValidator.validatePercentageOrCgpa(
+      _score.text,
+      isGraduation: isGrad,
+    );
 
     final err = e1 ?? e2 ?? e3;
     if (err != null) {
@@ -65,21 +71,35 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
       return;
     }
 
-    widget.onConfirm(
-      docType: widget.result.docType == 'graduation'
-          ? 'Graduation'
-          : widget.result.docType == '12th'
-              ? '12th Pass'
-              : widget.result.docType == '10th'
-                  ? '10th Pass'
-                  : '',
-      dateOfBirth: _dob.text.trim(),
-      university: _uni.text.trim(),
-      percentage: _score.text.trim(),
-      passingYear: _year.text.trim(),
-      extractedName: _name.text.trim(),
-    );
-    Navigator.pop(context);
+    setState(() {
+      _error = null;
+      _isSaving = true;
+    });
+
+    try {
+      await widget.onConfirm(
+        docType: widget.result.docType == 'graduation'
+            ? 'Graduation'
+            : widget.result.docType == '12th'
+                ? '12th Pass'
+                : widget.result.docType == '10th'
+                    ? '10th Pass'
+                    : '',
+        dateOfBirth: _dob.text.trim(),
+        university: _uni.text.trim(),
+        percentage: _score.text.trim(),
+        passingYear: _year.text.trim(),
+        extractedName: _name.text.trim(),
+      );
+
+      if (mounted) Navigator.pop(context);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Failed to save. Please try again.';
+        _isSaving = false;
+      });
+    }
   }
 
   @override
@@ -89,19 +109,41 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          TextField(controller: _name, decoration: const InputDecoration(labelText: 'Name')),
-          TextField(controller: _dob, decoration: const InputDecoration(labelText: 'DOB (DD/MM/YYYY)')),
-          TextField(controller: _uni, decoration: const InputDecoration(labelText: 'University / Board')),
-          TextField(controller: _year, decoration: const InputDecoration(labelText: 'Passing Year')),
-          TextField(controller: _score, decoration: const InputDecoration(labelText: 'Percentage / CGPA')),
+          TextField(
+            controller: _name,
+            decoration: const InputDecoration(labelText: 'Name'),
+          ),
+          TextField(
+            controller: _dob,
+            decoration: const InputDecoration(labelText: 'DOB (DD/MM/YYYY)'),
+          ),
+          TextField(
+            controller: _uni,
+            decoration: const InputDecoration(labelText: 'University / Board'),
+          ),
+          TextField(
+            controller: _year,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(labelText: 'Passing Year'),
+          ),
+          TextField(
+            controller: _score,
+            decoration: const InputDecoration(labelText: 'Percentage / CGPA'),
+          ),
           if (_error != null) ...[
             const SizedBox(height: 10),
             Text(_error!, style: const TextStyle(color: Colors.red)),
           ],
           const SizedBox(height: 16),
           ElevatedButton(
-            onPressed: _submit,
-            child: const Text('Confirm & Save'),
+            onPressed: _isSaving ? null : _submit,
+            child: _isSaving
+                ? const SizedBox(
+                    height: 18,
+                    width: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Confirm & Save'),
           ),
         ],
       ),
