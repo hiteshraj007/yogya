@@ -120,14 +120,32 @@ import 'presentation/providers/settings_provider.dart';
 import 'core/services/notification_service.dart';
 
 void main() async {
+  print('🚀 UNBLOCKING STARTUP...');
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  await NotificationService.instance.initialize();
+  try {
+    print('📦 Initializing Firebase...');
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    ).timeout(const Duration(seconds: 10));
+    print('✅ Firebase Ready');
+  } catch (e) {
+    print('❌ Firebase Init Failed/Timed out: $e');
+  }
 
-  await HiveService.init();
+  // Notification service handles its own errors and shouldn't block main
+  print('🔔 Initializing Notifications...');
+  NotificationService.instance.initialize().catchError((e) => print('❌ Notification Error: $e'));
+
+  try {
+    print('🗄️ Initializing Hive...');
+    await HiveService.init().timeout(const Duration(seconds: 8));
+    print('✅ Hive Ready');
+  } catch (e) {
+    print('❌ Hive Init Failed/Timed out: $e');
+    // We already have a try/catch inside HiveService.init, 
+    // but this catch ensures main() doesn't hang.
+  }
 
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -140,6 +158,7 @@ void main() async {
     DeviceOrientation.portraitUp,
   ]);
 
+  print('📱 Launching App...');
   runApp(
     const ProviderScope(
       child: YogyaApp(),

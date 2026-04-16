@@ -196,7 +196,6 @@
 //     await ref.read(profileNotifierProvider.notifier).loadProfile(user.uid);
 //   }
 // });
-// lib/presentation/providers/profile_provider.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/local/hive_service.dart';
 import '../../data/models/user_profile_model.dart';
@@ -247,43 +246,43 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
     required String category,
     required String gender,
     required String dateOfBirth,
-    required String qualification,
-    required String university,
-    required String passingYear,
-    required String percentage,
     required String phone,
     String stateOfDomicile = '',
     String primaryExamGoal = '',
-    bool isVerified = false,
-    double confidenceLevel = 0.0,
-    String graduationStatus = '',
+    String tenthBoard = '', String tenthYear = '', String tenthPercentage = '',
+    String twelfthBoard = '', String twelfthYear = '', String twelfthPercentage = '',
+    String gradCourse = '', String gradUniversity = '', String gradYear = '', String gradPercentage = '', String graduationStatus = '',
   }) async {
     state = state.copyWith(isLoading: true, isSaved: false, clearError: true);
     try {
+      final existing = HiveService.getUserProfile(uid);
+      
+      // Auto-compute display qualification
+      String computedQual = 'Not Specified';
+      if (graduationStatus == 'Completed' && gradCourse.isNotEmpty) {
+        computedQual = 'Graduation ($gradCourse)';
+      } else if (twelfthBoard.isNotEmpty) {
+        computedQual = '12th Pass';
+      } else if (tenthBoard.isNotEmpty) {
+        computedQual = '10th Pass';
+      }
+
       final profile = UserProfileModel(
-        id: uid,
-        name: name,
-        email: email,
-        category: category,
-        gender: gender,
-        dateOfBirth: dateOfBirth,
-        qualification: qualification,
-        university: university,
-        passingYear: passingYear,
-        percentage: percentage,
-        phone: phone,
-        profileCompletion: 0,
-        stateOfDomicile: stateOfDomicile,
+        id: uid, name: name, email: email, category: category, gender: gender,
+        dateOfBirth: dateOfBirth, phone: phone, stateOfDomicile: stateOfDomicile,
         primaryExamGoal: primaryExamGoal,
-        isVerified: isVerified,
-        confidenceLevel: confidenceLevel,
+        tenthBoard: tenthBoard, tenthYear: tenthYear, tenthPercentage: tenthPercentage,
+        twelfthBoard: twelfthBoard, twelfthYear: twelfthYear, twelfthPercentage: twelfthPercentage,
+        gradCourse: gradCourse, gradUniversity: gradUniversity, gradYear: gradYear, gradPercentage: gradPercentage,
         graduationStatus: graduationStatus,
+        qualification: computedQual,
+        isVerified: existing?.isVerified ?? false, confidenceLevel: existing?.confidenceLevel ?? 0.0,
       );
       profile.profileCompletion = profile.calculateCompletion();
       await HiveService.saveUserProfile(profile);
       state = state.copyWith(isLoading: false, isSaved: true, profile: profile);
     } catch (_) {
-      state = state.copyWith(isLoading: false, errorMessage: 'Failed to save profile. Please try again.');
+      state = state.copyWith(isLoading: false, errorMessage: 'Failed to save profile.');
     }
   }
 
@@ -302,149 +301,30 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
     double confidenceLevel = 0.0,
   }) async {
     final existing = HiveService.getUserProfile(uid) ?? state.profile;
+    
+    String tBoard = existing?.tenthBoard ?? ''; String tYear = existing?.tenthYear ?? ''; String tPercent = existing?.tenthPercentage ?? '';
+    String twBoard = existing?.twelfthBoard ?? ''; String twYear = existing?.twelfthYear ?? ''; String twPercent = existing?.twelfthPercentage ?? '';
+    String gCourse = existing?.gradCourse ?? ''; String gUni = existing?.gradUniversity ?? ''; String gYear = existing?.gradYear ?? ''; String gPercent = existing?.gradPercentage ?? ''; String gStatus = existing?.graduationStatus ?? '';
 
-    String mergeText(String current, String incoming) {
-      final inVal = incoming.trim();
-      if (inVal.isEmpty) return current;
-      if (docType.contains('10') || current.trim().isEmpty) return inVal;
-      return current;
+    String newName = existing?.name ?? '';
+    String newDob = existing?.dateOfBirth ?? '';
+
+    if (docType.contains('10')) {
+      tBoard = university; tYear = passingYear; tPercent = percentage;
+      if (extractedName.isNotEmpty) newName = extractedName;
+      if (dateOfBirth.isNotEmpty) newDob = dateOfBirth;
+    } else if (docType.contains('12')) {
+      twBoard = university; twYear = passingYear; twPercent = percentage;
+    } else if (docType.toLowerCase().contains('grad')) {
+      gCourse = courseName ?? university; gUni = university; gYear = passingYear; gPercent = percentage;
+      gStatus = (graduationStatus != null && graduationStatus.isNotEmpty) ? graduationStatus : ((int.tryParse(passingYear) ?? 9999) > DateTime.now().year ? 'Pursuing' : 'Completed');
     }
-
-    String mergeDob(String current, String incoming) {
-      var value = incoming.trim();
-      if (value.isEmpty) return current;
-
-      value = value.replaceAll('-', '/').replaceAll('.', '/').replaceAll(RegExp(r'\s+'), '');
-      final m = RegExp(r'^(\d{2})\/(\d{2})\/(\d{4})$').firstMatch(value);
-      if (m == null) return current;
-
-      final dd = int.parse(m.group(1)!);
-      final mm = int.parse(m.group(2)!);
-      final yyyy = int.parse(m.group(3)!);
-
-      if (yyyy < 1950 || yyyy > DateTime.now().year) return current;
-      final dt = DateTime(yyyy, mm, dd);
-      if (dt.year != yyyy || dt.month != mm || dt.day != dd) return current;
-
-      int age = DateTime.now().year - yyyy;
-      if (DateTime.now().month < mm || (DateTime.now().month == mm && DateTime.now().day < dd)) age--;
-      if (age < 10 || age > 80) return current;
-
-      return '${dd.toString().padLeft(2, '0')}/${mm.toString().padLeft(2, '0')}/$yyyy';
-    }
-
-    String mergeQualification(String current, String incoming, String passYear) {
-      int rank(String value) {
-        final q = value.toLowerCase();
-        if (q.contains('phd')) return 5;
-        if (q.contains('post')) return 4;
-        if (q.contains('grad')) return 3;
-        if (q.contains('12')) return 2;
-        if (q.contains('10')) return 1;
-        return 0;
-      }
-      
-      final cRank = rank(current);
-      final iRank = rank(incoming);
-
-      if (incoming.trim().isEmpty) return current;
-
-      if (iRank == 3) { // graduation
-        final pYear = int.tryParse(passYear);
-        if (pYear == null || pYear > DateTime.now().year) {
-           return cRank < 2 ? '12th Pass' : current;
-        }
-      }
-
-      return iRank >= cRank ? incoming : current;
-    }
-
-    double? numericValue(String raw) {
-      final m = RegExp(r'(\d+(?:\.\d+)?)').firstMatch(raw.trim().toLowerCase());
-      if (m == null) return null;
-      return double.tryParse(m.group(1)!);
-    }
-
-    bool isCgpa(String raw) => raw.toLowerCase().contains('cgpa') || raw.toLowerCase().contains('gpa');
-
-    String normalizeByQualification(String raw, String qualification) {
-      final val = raw.trim();
-      if (val.isEmpty) return '';
-      final q = qualification.toLowerCase();
-
-      if (q.contains('grad')) {
-        if (isCgpa(val)) return val;
-        final num = numericValue(val);
-        if (num != null && num <= 10.0) return 'CGPA ${num.toStringAsFixed(2)}';
-        return val;
-      }
-
-      if (val.contains('%')) return val;
-      final num = numericValue(val);
-      if (num == null) return val;
-      if (num <= 10.0) return '${(num * 9.5).toStringAsFixed(2)}%';
-      return '${num.toStringAsFixed(2)}%';
-    }
-
-    String newGraduationStatus = existing?.graduationStatus ?? '';
-    if (docType.toLowerCase().contains('grad')) {
-        if (graduationStatus != null && graduationStatus.isNotEmpty) {
-            newGraduationStatus = graduationStatus;
-        } else {
-            final iy = int.tryParse(passingYear);
-            if (iy == null || iy > DateTime.now().year) {
-                newGraduationStatus = 'Pursuing';
-            } else {
-                newGraduationStatus = 'Completed';
-            }
-        }
-    }
-
-    // Merge Course Name into Qualification if applicable
-    String mergedQualification = mergeQualification(existing?.qualification ?? '', docType, passingYear);
-    if (docType.toLowerCase().contains('grad') && courseName != null && courseName.isNotEmpty) {
-        mergedQualification = courseName;
-    }
-
-    final currentYear = int.tryParse(existing?.passingYear ?? '');
-    final incomingYear = int.tryParse(passingYear);
-    final mergedYear = incomingYear != null && (currentYear == null || incomingYear > currentYear)
-        ? passingYear
-        : (existing?.passingYear ?? '');
-
-    final incomingNormalized = normalizeByQualification(percentage, mergedQualification);
-    final currentNormalized = normalizeByQualification(existing?.percentage ?? '', existing?.qualification ?? '');
-
-    String mergedPercentage;
-    if (mergedQualification.toLowerCase().contains('grad')) {
-      mergedPercentage = incomingNormalized.isNotEmpty ? incomingNormalized : currentNormalized;
-    } else {
-      final currentNum = numericValue(currentNormalized);
-      final incomingNum = numericValue(incomingNormalized);
-      mergedPercentage = (incomingNum != null && (currentNum == null || incomingNum > currentNum))
-          ? incomingNormalized
-          : currentNormalized;
-    }
-
-    final mergedGoal = primaryExamGoal.trim().isNotEmpty ? primaryExamGoal : (existing?.primaryExamGoal ?? '');
 
     await saveProfile(
-      uid: uid,
-      name: mergeText(existing?.name ?? '', extractedName),
-      email: existing?.email ?? '',
-      category: existing?.category ?? 'General',
-      gender: existing?.gender ?? 'Male',
-      dateOfBirth: mergeDob(existing?.dateOfBirth ?? '', dateOfBirth),
-      qualification: mergedQualification,
-      university: mergeText(existing?.university ?? '', university),
-      passingYear: mergedYear,
-      percentage: mergedPercentage,
-      phone: existing?.phone ?? '',
-      stateOfDomicile: existing?.stateOfDomicile ?? '',
-      primaryExamGoal: mergedGoal,
-      isVerified: existing?.isVerified ?? false || isVerified,
-      confidenceLevel: (existing?.confidenceLevel ?? 0.0) < confidenceLevel ? confidenceLevel : (existing?.confidenceLevel ?? 0.0),
-      graduationStatus: newGraduationStatus.isNotEmpty ? newGraduationStatus : (existing?.graduationStatus ?? ''),
+      uid: uid, name: newName, email: existing?.email ?? '', category: existing?.category ?? 'General', gender: existing?.gender ?? 'Male', dateOfBirth: newDob, phone: existing?.phone ?? '', stateOfDomicile: existing?.stateOfDomicile ?? '', primaryExamGoal: primaryExamGoal.trim().isNotEmpty ? primaryExamGoal : (existing?.primaryExamGoal ?? ''),
+      tenthBoard: tBoard, tenthYear: tYear, tenthPercentage: tPercent,
+      twelfthBoard: twBoard, twelfthYear: twYear, twelfthPercentage: twPercent,
+      gradCourse: gCourse, gradUniversity: gUni, gradYear: gYear, gradPercentage: gPercent, graduationStatus: gStatus,
     );
   }
 
@@ -452,10 +332,7 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
 }
 
 final profileNotifierProvider = StateNotifierProvider<ProfileNotifier, ProfileState>((ref) => ProfileNotifier());
-
 final profileLoaderProvider = FutureProvider<void>((ref) async {
   final user = ref.watch(currentUserProvider);
-  if (user != null) {
-    await ref.read(profileNotifierProvider.notifier).loadProfile(user.uid);
-  }
+  if (user != null) await ref.read(profileNotifierProvider.notifier).loadProfile(user.uid);
 });

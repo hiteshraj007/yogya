@@ -643,7 +643,6 @@
 // }
 
 
-// lib/core/services/ocr_service.dart
 import 'dart:io';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image_picker/image_picker.dart';
@@ -671,6 +670,7 @@ class OcrResult {
   final String motherName;
   final Map<String, String> subjectMarks;
   final double confidence;
+  final String? imagePath;
   final String? errorMessage;
 
   const OcrResult({
@@ -693,6 +693,7 @@ class OcrResult {
     this.motherName = '',
     this.subjectMarks = const {},
     this.confidence = 0.0,
+    this.imagePath,
     this.errorMessage,
   });
 
@@ -715,7 +716,8 @@ class OcrResult {
         fatherName = '',
         motherName = '',
         subjectMarks = const {},
-        confidence = 0.0;
+        confidence = 0.0,
+        imagePath = null;
 }
 
 class OcrService {
@@ -731,20 +733,11 @@ class OcrService {
       compressQuality: 100,
       uiSettings: [
         AndroidUiSettings(
-          toolbarTitle: 'Adjust Document',
-          toolbarColor: const Color(0xFF131317),
-          toolbarWidgetColor: Colors.white,
-          initAspectRatio: CropAspectRatioPreset.original,
-          lockAspectRatio: false,
-          hideBottomControls: false,
-          activeControlsWidgetColor: const Color(0xFF6C5CE7),
-          dimmedLayerColor: Colors.black.withOpacity(0.8),
+          toolbarTitle: 'Adjust Document', toolbarColor: const Color(0xFF131317), toolbarWidgetColor: Colors.white,
+          initAspectRatio: CropAspectRatioPreset.original, lockAspectRatio: false, hideBottomControls: false,
+          activeControlsWidgetColor: const Color(0xFF6C5CE7), dimmedLayerColor: Colors.black.withOpacity(0.8),
         ),
-        IOSUiSettings(
-          title: 'Adjust Document',
-          aspectRatioLockEnabled: false,
-          resetAspectRatioEnabled: true,
-        ),
+        IOSUiSettings(title: 'Adjust Document', aspectRatioLockEnabled: false, resetAspectRatioEnabled: true),
       ],
     );
     if (croppedFile != null) return File(croppedFile.path);
@@ -753,29 +746,18 @@ class OcrService {
 
   Future<File?> pickFromCamera() async {
     try {
-      final picked = await _imagePicker.pickImage(
-        source: ImageSource.camera,
-        imageQuality: 100,
-        preferredCameraDevice: CameraDevice.rear,
-      );
+      final picked = await _imagePicker.pickImage(source: ImageSource.camera, imageQuality: 100, preferredCameraDevice: CameraDevice.rear);
       if (picked == null) return null;
       return _cropImage(File(picked.path));
-    } catch (_) {
-      return null;
-    }
+    } catch (_) { return null; }
   }
 
   Future<File?> pickFromGallery() async {
     try {
-      final picked = await _imagePicker.pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 100,
-      );
+      final picked = await _imagePicker.pickImage(source: ImageSource.gallery, imageQuality: 100);
       if (picked == null) return null;
       return _cropImage(File(picked.path));
-    } catch (_) {
-      return null;
-    }
+    } catch (_) { return null; }
   }
 
   Future<OcrResult> extractText(File imageFile) async {
@@ -783,7 +765,6 @@ class OcrService {
     try {
       final bytes = await imageFile.readAsBytes();
       var image = img.decodeImage(bytes);
-
       if (image != null) {
         image = img.grayscale(image);
         image = img.adjustColor(image, contrast: 1.5);
@@ -791,28 +772,23 @@ class OcrService {
         processedFile = File(processedPath);
         await processedFile.writeAsBytes(img.encodeJpg(image, quality: 90));
       }
-
       final inputImage = InputImage.fromFile(processedFile ?? imageFile);
       final recognized = await _textRecognizer.processImage(inputImage);
       final rawText = recognized.blocks.map((b) => b.text).join('\n');
-
-      if (rawText.trim().isEmpty) {
-        return const OcrResult.failure('No text found. Please take a clearer photo.');
-      }
-
-      return _parseText(rawText);
+      if (rawText.trim().isEmpty) return const OcrResult.failure('No text found. Please take a clearer photo.');
+      return _parseText(rawText, imageFile.path);
     } catch (e) {
       return OcrResult.failure('OCR failed: ${e.toString()}');
     } finally {
-      if (processedFile != null && await processedFile.exists()) {
-        await processedFile.delete();
-      }
+      // Note: Hum image file delete nahi kar rahe abhi kyunki 
+      // OcrReviewScreen ko ye path display ke liye chahiye.
+      // Navigator pop ke baad clean up kiya jata hai in documents_screen.dart logic
+      if (processedFile != null && await processedFile.exists()) await processedFile.delete();
     }
   }
 
-  OcrResult _parseText(String text) {
+  OcrResult _parseText(String text, String? imagePath) {
     final normalizedText = _normalizeHindiDigits(text);
-
     final docType = _detectDocType(normalizedText);
     final dob = _extractDOB(normalizedText, docType);
     final board = _extractBoard(normalizedText);
@@ -821,14 +797,13 @@ class OcrService {
     final stream = _extractStream(normalizedText);
     final university = _extractUniversity(normalizedText);
 
-    String courseName = '';
-    String graduationStatus = '';
+    String courseName = ''; String graduationStatus = '';
     if (docType == 'graduation') {
       courseName = _extractCourseName(text);
       graduationStatus = _extractGraduationStatus(normalizedText);
     }
 
-    final candidateName = _extractCandidateName(normalizedText);
+    final candidateName = _extractCandidateName(normalizedText, docType);
     final fatherName = _extractFatherName(normalizedText);
     final motherName = _extractMotherName(normalizedText);
     final registrationNumber = _extractRegistrationNumber(normalizedText);
@@ -836,20 +811,11 @@ class OcrService {
 
     String examName = '';
     final rollNumber = _extractRollNumber(normalizedText);
-    if (docType == 'admit_card') {
-      examName = _extractAdmitCardExamName(normalizedText);
-    }
+    if (docType == 'admit_card') examName = _extractAdmitCardExamName(normalizedText);
 
     final confidence = _calculateConfidence(
-      dob: dob,
-      board: board,
-      year: year,
-      aggregate: aggregate,
-      docType: docType,
-      candidateName: candidateName,
-      rollNumber: rollNumber,
-      registrationNumber: registrationNumber,
-      subjectMarks: subjectMarks,
+      dob: dob, board: board, year: year, aggregate: aggregate, docType: docType,
+      candidateName: candidateName, rollNumber: rollNumber, registrationNumber: registrationNumber, subjectMarks: subjectMarks,
     );
 
     return OcrResult(
@@ -872,6 +838,7 @@ class OcrService {
       motherName: motherName,
       subjectMarks: subjectMarks,
       confidence: confidence,
+      imagePath: imagePath,
     );
   }
 
@@ -886,90 +853,46 @@ class OcrService {
     final lowerText = text.toLowerCase();
     if (lowerText.contains('admit card') || lowerText.contains('hall ticket') || lowerText.contains('e-admit') || lowerText.contains('call letter') || lowerText.contains('प्रवेश पत्र')) return 'admit_card';
     if (lowerText.contains('senior secondary') || lowerText.contains('higher secondary') || lowerText.contains('intermediate') || lowerText.contains('class xii') || lowerText.contains('class 12') || lowerText.contains('12th') || lowerText.contains('hsc') || lowerText.contains('उच्च माध्यमिक') || lowerText.contains('वरिष्ठ माध्यमिक')) return '12th';
-    if (lowerText.contains('secondary') || lowerText.contains('class x') || lowerText.contains('class 10') || lowerText.contains('10th') || lowerText.contains('matric') || lowerText.contains('sslc') || lowerText.contains('माध्यमिक परीक्षा')) return '10th';
+    if ((lowerText.contains('secondary') && !lowerText.contains('senior') && !lowerText.contains('higher')) || lowerText.contains('class x') || lowerText.contains('class 10') || lowerText.contains('10th') || lowerText.contains('matric') || lowerText.contains('sslc') || lowerText.contains('माध्यमिक परीक्षा')) return '10th';
     if (lowerText.contains('bachelor') || lowerText.contains('degree') || lowerText.contains('graduation') || lowerText.contains('university') || lowerText.contains('cgpa') || lowerText.contains('स्नातक')) return 'graduation';
     return 'unknown';
   }
 
   String _extractDOB(String text, String docType) {
     if (docType == '12th' || docType == 'graduation') return '';
-    
-    final lowerText = text.toLowerCase();
-    
     final patterns = [
-      // Standard DD/MM/YYYY
       RegExp(r'\b(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})\b'),
-      // YYYY/MM/DD
       RegExp(r'\b(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})\b'),
-      // 15th August 2000
-      RegExp(
-        r'\b(\d{1,2})(?:st|nd|rd|th)?\s+(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{4})\b',
-        caseSensitive: false,
-      ),
-      // August 15, 2000
-      RegExp(
-        r'\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?\,?\s+(\d{4})\b',
-        caseSensitive: false,
-      ),
+      RegExp(r'\b(\d{1,2})(?:st|nd|rd|th)?\s+(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{4})\b', caseSensitive: false),
+      RegExp(r'\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?\,?\s+(\d{4})\b', caseSensitive: false),
     ];
-
     final allDates = <String>[];
     for (final pattern in patterns) {
       final matches = pattern.allMatches(text);
-      for (final match in matches) {
-        allDates.add(_formatDate(match, pattern.pattern));
-      }
+      for (final match in matches) allDates.add(_formatDate(match, pattern.pattern));
     }
-
     if (allDates.isEmpty) return '';
-
-    // The Date of Birth on a marksheet is almost always the earliest date printed, 
-    // usually ~15 years before the examination date.
     String bestDate = allDates.first;
     int minYear = 9999;
-    
     for (final dateStr in allDates) {
       try {
         final parts = dateStr.split('/');
         if (parts.length == 3) {
           final year = int.parse(parts[2]);
-          // Ignore highly unrealistic birth years (like 1000 or 2050)
-          if (year > 1950 && year < DateTime.now().year && year < minYear) {
-            minYear = year;
-            bestDate = dateStr;
-          }
+          if (year > 1950 && year < DateTime.now().year && year < minYear) { minYear = year; bestDate = dateStr; }
         }
       } catch (_) {}
     }
-
     return bestDate;
   }
 
   String _formatDate(RegExpMatch match, String pattern) {
-    // DD Month YYYY format
     if (pattern.contains('january|february')) {
-      final months = {
-        'january': '01',
-        'february': '02',
-        'march': '03',
-        'april': '04',
-        'may': '05',
-        'june': '06',
-        'july': '07',
-        'august': '08',
-        'september': '09',
-        'october': '10',
-        'november': '11',
-        'december': '12',
-      };
+      final months = {'january': '01', 'february': '02', 'march': '03', 'april': '04', 'may': '05', 'june': '06', 'july': '07', 'august': '08', 'september': '09', 'october': '10', 'november': '11', 'december': '12'};
       final month = months[match.group(2)!.toLowerCase()] ?? '00';
       return '${match.group(1)!.padLeft(2, '0')}/$month/${match.group(3)}';
     }
-    // YYYY/MM/DD -> DD/MM/YYYY
-    if (pattern.startsWith(r'\b(\d{4})')) {
-      return '${match.group(3)}/${match.group(2)}/${match.group(1)}';
-    }
-    // DD/MM/YYYY ya DD/MM/YY
+    if (pattern.startsWith(r'\b(\d{4})')) return '${match.group(3)}/${match.group(2)}/${match.group(1)}';
     return '${match.group(1)}/${match.group(2)}/${match.group(3)}';
   }
 
@@ -985,13 +908,8 @@ class OcrService {
   String _extractYear(String text) {
     final matches = RegExp(r'\b(20\d{2})\b').allMatches(text).toList();
     if (matches.isEmpty) return '';
-
-    // Often stated in title e.g. "Secondary Examination - 2020"
     final examYearMatch = RegExp(r'(?:examination|परीक्षा)\s*[-:]?\s*(20\d{2})', caseSensitive: false).firstMatch(text);
     if (examYearMatch != null) return examYearMatch.group(1)!;
-
-    // A passing year is generally the largest valid year in the doc
-    // (since print date is typically same as passing year, and DOB is earlier)
     int maxYear = 0;
     for(var m in matches) {
       final y = int.tryParse(m.group(1)!) ?? 0;
@@ -1003,8 +921,6 @@ class OcrService {
   String _extractAggregate(String text, String docType, String board) {
     if (docType == 'admit_card') return '';
     final normalized = text.toLowerCase().replaceAll('o/', '0/').replaceAll('o ', '0 ').replaceAll(' l ', ' 1 ');
-
-    // Graduation: CGPA first
     if (docType == 'graduation') {
       final gradCgpaPatterns = [
         RegExp(r'\bcgpa\b[^\d]{0,12}(\d+(?:[\.,]\d{1,2})?)', caseSensitive: false),
@@ -1021,16 +937,12 @@ class OcrService {
         }
       }
     }
-
     final pairPercent = _percentageFromObtainedTotal(normalized);
     if (pairPercent != null) return '${pairPercent.toStringAsFixed(1)}%';
-
     final cgpa = RegExp(r'cgpa\s*[:\-]?\s*(\d+[\.,]\d{1,2})', caseSensitive: false).firstMatch(normalized);
     if (cgpa != null) return 'CGPA ${cgpa.group(1)!.replaceAll(',', '.')}';
-
     final pct = RegExp(r'(\d{2,3}(?:[\.,]\d{1,2})?)\s*%').firstMatch(normalized);
     if (pct != null) return '${pct.group(1)!.replaceAll(',', '.')}%';
-
     return '';
   }
 
@@ -1047,10 +959,30 @@ class OcrService {
     return best;
   }
 
-  String _extractAdmitCardExamName(String text) => '';
-  String _extractRollNumber(String text) => '';
-  String _extractRegistrationNumber(String text) => '';
-  String _extractStream(String text) => '';
+  String _extractCandidateName(String text, String docType) {
+    if (docType == '12th' || docType == 'graduation') return '';
+    final cleanText = text.replaceAll(RegExp(r'\n+'), ' ');
+    final subjectBlacklist = RegExp(r'\b(HINDI|ENGLISH|SANSKRIT|MATHEMATICS|SCIENCE|SOCIAL|HISTORY|GEOGRAPHY|PHYSICS|CHEMISTRY|BIOLOGY|ECONOMICS|ACCOUNTANCY|BUSINESS)\b', caseSensitive: false);
+    
+    final certRegex = RegExp(r'(?:certify that|किया जाता है कि)\s+([A-Z\s]{4,40})', caseSensitive: false);
+    final match = certRegex.firstMatch(cleanText);
+    if (match != null) {
+      final possibleName = match.group(1)!.trim();
+      if (!possibleName.toLowerCase().contains('mother') && !possibleName.toLowerCase().contains('father') && !subjectBlacklist.hasMatch(possibleName)) {
+        return possibleName.split(RegExp(r'माता|पिता|mother|father|date|birth', caseSensitive: false)).first.trim();
+      }
+    }
+    final lines = text.split('\n');
+    for (int i = 0; i < lines.length; i++) {
+      final line = lines[i].toLowerCase();
+      if ((line.contains('name:') || line.contains('candidate name:')) && !subjectBlacklist.hasMatch(lines[i])) {
+        final val = lines[i].split(':').last.trim();
+        if (val.length > 3 && !subjectBlacklist.hasMatch(val)) return val;
+      }
+    }
+    return '';
+  }
+
   String _extractCourseName(String text) {
     final lines = text.split('\n');
     for (var line in lines) {
@@ -1063,31 +995,8 @@ class OcrService {
 
   String _extractGraduationStatus(String text) {
     if (text.contains('semester examination') || text.contains('statement of marks')) {
-      if (text.contains('final year') || text.contains('convocation') || text.contains('degree certificate')) {
-        return 'Completed';
-      }
+      if (text.contains('final year') || text.contains('convocation') || text.contains('degree certificate')) return 'Completed';
       return 'Pursuing';
-    }
-    return '';
-  }
-
-  String _extractCandidateName(String text) {
-    final cleanText = text.replaceAll(RegExp(r'\n+'), ' ');
-    final certRegex = RegExp(r'(?:certify that|किया जाता है कि)\s+([A-Z\s]{4,40})', caseSensitive: false);
-    final match = certRegex.firstMatch(cleanText);
-    if (match != null) {
-      final possibleName = match.group(1)!.trim();
-      if (!possibleName.toLowerCase().contains('mother') && !possibleName.toLowerCase().contains('father')) {
-        return possibleName.split(RegExp(r'माता|पिता|mother|father|date|birth', caseSensitive: false)).first.trim();
-      }
-    }
-
-    final lines = text.split('\n');
-    for (int i = 0; i < lines.length; i++) {
-      final line = lines[i].toLowerCase();
-      if (line.contains('name:') || line.contains('candidate name:')) {
-        return lines[i].split(':').last.trim();
-      }
     }
     return '';
   }
@@ -1098,40 +1007,18 @@ class OcrService {
     for (final line in lines) {
       final trimmed = line.trim().toLowerCase();
       for (final keyword in uniKeywords) {
-        if (trimmed.contains(keyword) && trimmed.length > 5 && trimmed.length < 60) {
-          return line.trim();
-        }
+        if (trimmed.contains(keyword) && trimmed.length > 5 && trimmed.length < 60) return line.trim();
       }
     }
     return '';
   }
-  String _extractFatherName(String text) => '';
-  String _extractMotherName(String text) => '';
-  Map<String, String> _extractSubjectMarks(String text) => {};
 
-  double _calculateConfidence({
-    required String dob,
-    required String board,
-    required String year,
-    required String aggregate,
-    required String docType,
-    required String candidateName,
-    required String rollNumber,
-    required String registrationNumber,
-    required Map<String, String> subjectMarks,
-  }) {
+  String _extractAdmitCardExamName(String text) => ''; String _extractRollNumber(String text) => ''; String _extractRegistrationNumber(String text) => ''; String _extractStream(String text) => ''; String _extractFatherName(String text) => ''; String _extractMotherName(String text) => ''; Map<String, String> _extractSubjectMarks(String text) => {};
+
+  double _calculateConfidence({required String dob, required String board, required String year, required String aggregate, required String docType, required String candidateName, required String rollNumber, required String registrationNumber, required Map<String, String> subjectMarks}) {
     double score = 0.0;
-    if (docType != 'unknown') score += 0.20;
-    if (board.isNotEmpty) score += 0.15;
-    if (year.isNotEmpty) score += 0.10;
-    if (aggregate.isNotEmpty) score += 0.18;
-    if (dob.isNotEmpty) score += 0.08;
-    if (candidateName.isNotEmpty) score += 0.10;
-    if (rollNumber.isNotEmpty) score += 0.07;
-    if (registrationNumber.isNotEmpty) score += 0.05;
-    if (subjectMarks.isNotEmpty) score += 0.07;
+    if (docType != 'unknown') score += 0.20; if (board.isNotEmpty) score += 0.15; if (year.isNotEmpty) score += 0.10; if (aggregate.isNotEmpty) score += 0.18; if (dob.isNotEmpty) score += 0.08; if (candidateName.isNotEmpty) score += 0.10; if (rollNumber.isNotEmpty) score += 0.07; if (registrationNumber.isNotEmpty) score += 0.05; if (subjectMarks.isNotEmpty) score += 0.07;
     return score.clamp(0.0, 1.0);
   }
-
   void dispose() => _textRecognizer.close();
 }
