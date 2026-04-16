@@ -29,15 +29,18 @@ class UserProfileModelAdapter extends TypeAdapter<UserProfileModel> {
       percentage: fields[9] as String,
       phone: fields[10] as String,
       profileCompletion: fields[11] as int,
-      stateOfDomicile: fields[12] as String? ?? '',
-      primaryExamGoal: fields[13] as String? ?? '',
+      stateOfDomicile: fields[12] as String,
+      primaryExamGoal: fields[13] as String,
+      isVerified: fields[14] as bool,
+      confidenceLevel: fields[15] as double,
+      graduationStatus: fields[16] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, UserProfileModel obj) {
     writer
-      ..writeByte(14)
+      ..writeByte(17)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -65,7 +68,13 @@ class UserProfileModelAdapter extends TypeAdapter<UserProfileModel> {
       ..writeByte(12)
       ..write(obj.stateOfDomicile)
       ..writeByte(13)
-      ..write(obj.primaryExamGoal);
+      ..write(obj.primaryExamGoal)
+      ..writeByte(14)
+      ..write(obj.isVerified)
+      ..writeByte(15)
+      ..write(obj.confidenceLevel)
+      ..writeByte(16)
+      ..write(obj.graduationStatus);
   }
 
   @override

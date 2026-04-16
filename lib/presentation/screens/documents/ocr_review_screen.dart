@@ -11,12 +11,16 @@ class OcrReviewScreen extends StatefulWidget {
     required String percentage,
     required String passingYear,
     required String extractedName,
+    String? courseName,
+    String? graduationStatus,
   }) onConfirm;
+  final String? warningMessage;
 
   const OcrReviewScreen({
     super.key,
     required this.result,
     required this.onConfirm,
+    this.warningMessage,
   });
 
   @override
@@ -29,6 +33,8 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
   late final TextEditingController _uni;
   late final TextEditingController _year;
   late final TextEditingController _score;
+  late final TextEditingController _course;
+  late final TextEditingController _status;
 
   String? _error;
   bool _isSaving = false;
@@ -41,6 +47,8 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
     _uni = TextEditingController(text: widget.result.university);
     _year = TextEditingController(text: widget.result.year);
     _score = TextEditingController(text: widget.result.aggregate);
+    _course = TextEditingController(text: widget.result.courseName);
+    _status = TextEditingController(text: widget.result.graduationStatus);
   }
 
   @override
@@ -50,6 +58,8 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
     _uni.dispose();
     _year.dispose();
     _score.dispose();
+    _course.dispose();
+    _status.dispose();
     super.dispose();
   }
 
@@ -90,9 +100,11 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
         percentage: _score.text.trim(),
         passingYear: _year.text.trim(),
         extractedName: _name.text.trim(),
+        courseName: _course.text.trim(),
+        graduationStatus: _status.text.trim(),
       );
 
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) Navigator.pop(context, 'save');
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -104,7 +116,7 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
 
   Future<bool> _onWillPop() async {
     if (_isSaving) return false;
-    Navigator.pop(context, false);
+    Navigator.pop(context, null);
     return false;
   }
 
@@ -117,31 +129,99 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
           title: const Text('Review OCR Data'),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
-            onPressed: _isSaving ? null : () => Navigator.pop(context, false),
+            onPressed: _isSaving ? null : () => Navigator.pop(context, null),
           ),
         ),
         body: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                border: Border.all(color: Colors.blue.shade200),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline_rounded, color: Colors.blue),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'This information is read-only. Please verify it matches your document. If incorrect, use the Re-upload button.',
+                      style: TextStyle(color: Colors.blue.shade800, fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (widget.warningMessage != null) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  border: Border.all(color: Colors.orange),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, color: Colors.orange),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        widget.warningMessage!,
+                        style: const TextStyle(color: Colors.orange),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             TextField(
               controller: _name,
+              readOnly: true,
+              style: const TextStyle(color: Colors.grey),
               decoration: const InputDecoration(labelText: 'Name'),
             ),
             TextField(
               controller: _dob,
+              readOnly: true,
+              style: const TextStyle(color: Colors.grey),
               decoration: const InputDecoration(labelText: 'DOB (DD/MM/YYYY)'),
             ),
             TextField(
               controller: _uni,
+              readOnly: true,
+              style: const TextStyle(color: Colors.grey),
               decoration: const InputDecoration(labelText: 'University / Board'),
             ),
+            if (widget.result.docType == 'graduation' && widget.result.courseName.isNotEmpty)
+              TextField(
+                controller: _course,
+                readOnly: true,
+                style: const TextStyle(color: Colors.grey),
+                decoration: const InputDecoration(labelText: 'Course Name'),
+              ),
+            if (widget.result.docType == 'graduation' && widget.result.graduationStatus.isNotEmpty)
+              TextField(
+                controller: _status,
+                readOnly: true,
+                style: const TextStyle(color: Colors.grey),
+                decoration: const InputDecoration(labelText: 'Graduation Status'),
+              ),
             TextField(
               controller: _year,
+              readOnly: true,
               keyboardType: TextInputType.number,
+              style: const TextStyle(color: Colors.grey),
               decoration: const InputDecoration(labelText: 'Passing Year'),
             ),
             TextField(
               controller: _score,
+              readOnly: true,
+              style: const TextStyle(color: Colors.grey),
               decoration: const InputDecoration(labelText: 'Percentage / CGPA'),
             ),
             if (_error != null) ...[
@@ -158,6 +238,15 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Text('Confirm & Save'),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton(
+              onPressed: _isSaving ? null : () => Navigator.pop(context, 'reupload'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.red,
+                side: const BorderSide(color: Colors.red),
+              ),
+              child: const Text('Re-upload Document'),
             ),
           ],
         ),

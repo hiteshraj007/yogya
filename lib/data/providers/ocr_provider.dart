@@ -151,6 +151,8 @@
 
 
 import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/services/ocr_service.dart';
 import '../../data/local/hive_service.dart';
@@ -200,7 +202,7 @@ class OcrNotifier extends StateNotifier<OcrState> {
   OcrNotifier() : super(const OcrState());
 
   final _ocrService = OcrService.instance;
-  static const double _reviewThreshold = 0.65;
+  static const double _reviewThreshold = 0.85;
 
   Future<OcrResult?> scanFromCamera() async {
     return _processImage(() => _ocrService.pickFromCamera());
@@ -265,9 +267,23 @@ class OcrNotifier extends StateNotifier<OcrState> {
 
     final needsReview = result.confidence < _reviewThreshold;
 
+    // Save image permanently for the viewer feature
+    String savedFileName = '';
+    try {
+      final docsDir = await getApplicationDocumentsDirectory();
+      final ext = p.extension(imageFile.path);
+      final newFileName = 'doc_${DateTime.now().millisecondsSinceEpoch}$ext';
+      final newPath = p.join(docsDir.path, newFileName);
+      final savedFile = await imageFile.copy(newPath);
+      savedFileName = savedFile.path;
+    } catch (e) {
+      print('Failed to save document image: $e');
+    }
+
     final doc = AcademicDocModel(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       docType: result.docType,
+      fileName: savedFileName,
       extractedText: result.rawText,
       board: result.board,
       year: result.year,

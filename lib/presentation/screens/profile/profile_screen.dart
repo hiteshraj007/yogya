@@ -124,7 +124,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
       _emailCtrl.text = profile.email;
       _phoneCtrl.text = profile.phone;
       _dobCtrl.text = profile.dateOfBirth;
-      _qualCtrl.text = profile.qualification;
+
+      if (profile.graduationStatus == 'Pursuing' && !profile.qualification.toLowerCase().contains('pursuing')) {
+          _qualCtrl.text = '${profile.qualification} (Pursuing)';
+      } else {
+          _qualCtrl.text = profile.qualification;
+      }
+      
       _uniCtrl.text = profile.university;
       _yearCtrl.text = profile.passingYear;
       _percentCtrl.text = profile.percentage;
@@ -765,11 +771,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                   border: Border.all(color: context.colors.glassBorder),
                 ),
                 child: Text(
-                  'Scan',
+                  'Go to Documents',
                   style: TextStyle(
                     color: context.colors.textPrimary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
                     fontFamily: 'Poppins',
                   ),
                 ),

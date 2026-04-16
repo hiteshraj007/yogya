@@ -46,6 +46,15 @@ class UserProfileModel extends HiveObject {
   @HiveField(13)
   String primaryExamGoal;
 
+  @HiveField(14)
+  bool isVerified;
+
+  @HiveField(15)
+  double confidenceLevel;
+
+  @HiveField(16)
+  String graduationStatus; // "Pursuing" or "Completed"
+
   UserProfileModel({
     required this.id,
     required this.name,
@@ -61,6 +70,9 @@ class UserProfileModel extends HiveObject {
     this.profileCompletion = 0,
     this.stateOfDomicile = '',
     this.primaryExamGoal = '',
+    this.isVerified      = false,
+    this.confidenceLevel = 0.0,
+    this.graduationStatus = '',
   });
 
   // Profile completion calculate karo

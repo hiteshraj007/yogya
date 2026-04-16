@@ -570,6 +570,7 @@ import 'widgets/scanned_doc_card.dart';
 import 'widgets/ocr_progress_card.dart';
 import '../../../core/services/ocr_service.dart';
 import 'ocr_review_screen.dart';
+import 'dart:io';
 
 class DocumentsScreen extends ConsumerStatefulWidget {
   DocumentsScreen({super.key});
@@ -777,7 +778,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
                             date: doc['date'],
                             status: doc['status'],
                             icon: doc['icon'],
-                            onTap: () {},
+                            onTap: () => _showDocumentDetails(doc['id']),
                             onDelete: () async {
                               await HiveService.deleteDoc(doc['id']);
                               setState(() {});
@@ -822,6 +823,84 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
             textAlign: TextAlign.center,
           ),
         ),
+      ),
+    );
+  }
+
+  void _showDocumentDetails(String docId) {
+    final doc = HiveService.getDoc(docId);
+    if (doc == null) return;
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        if (doc.fileName.isNotEmpty) {
+          return Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: const EdgeInsets.all(16),
+            child: InteractiveViewer(
+              panEnabled: true,
+              boundaryMargin: const EdgeInsets.all(20),
+              minScale: 0.5,
+              maxScale: 4.0,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.file(
+                  File(doc.fileName),
+                  fit: BoxFit.contain,
+                  errorBuilder: (ctx, err, stack) => const Center(
+                    child: Text('Image not available', style: TextStyle(color: Colors.white)),
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+
+        return AlertDialog(
+          backgroundColor: context.colors.bgCard,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(
+            doc.docType.toUpperCase(),
+            style: TextStyle(color: context.colors.textPrimary, fontFamily: 'Poppins'),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _detailRow('Status', doc.isVerified ? 'Verified' : 'Needs Review', context.colors.textPrimary),
+                _detailRow('Uploaded At', '${doc.uploadedAt.day}/${doc.uploadedAt.month}/${doc.uploadedAt.year}', context.colors.textHint),
+                const Divider(),
+                _detailRow('Extracted Data', '', context.colors.primaryLight),
+                const SizedBox(height: 8),
+                Text(
+                  doc.extractedText.isNotEmpty ? doc.extractedText : 'No raw text available.',
+                  style: TextStyle(color: context.colors.textHint, fontSize: 12, fontFamily: 'Monospace'),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _detailRow(String label, String value, Color valueColor) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+         crossAxisAlignment: CrossAxisAlignment.start,
+         children: [
+           Text('$label: ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: valueColor.withOpacity(0.8))),
+           Expanded(child: Text(value, style: TextStyle(fontSize: 13, color: valueColor))),
+         ]
       ),
     );
   }
@@ -909,17 +988,61 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
 
     if (result == null) return;
 
-    final ocrState = ref.read(ocrProvider);
+    if (result.docType == '12th' || result.docType == 'graduation') {
+       final allDocs = HiveService.getAllDocs();
+       final has10th = allDocs.any((d) => d.docType == '10th' || d.docType == '10th Pass');
+       if (!has10th) {
+         if (mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(
+             SnackBar(
+               content: const Text(
+                 'Please upload your 10th marksheet first. It is the base document for identity verification.',
+                 style: TextStyle(fontFamily: 'Poppins', color: Colors.white),
+               ),
+               backgroundColor: context.colors.urgencyHigh,
+               behavior: SnackBarBehavior.floating,
+             ),
+           );
+         }
+         ref.read(ocrProvider.notifier).reset();
+         return;
+       }
+    }
 
-    // LOW CONFIDENCE => REVIEW
-    if (ocrState.needsReview) {
+    final user = ref.read(currentUserProvider);
+    final profile = user != null ? HiveService.getUserProfile(user.uid) : null;
+    
+    bool isMismatch = false;
+    String? warningMsg;
+
+    if (profile != null && (result.docType == '12th' || result.docType == 'graduation')) {
+        if (profile.dateOfBirth.isNotEmpty && result.dateOfBirth.isNotEmpty && profile.dateOfBirth != result.dateOfBirth) {
+            isMismatch = true;
+            warningMsg = 'Mismatch detected! DOB does not match your 10th base document.';
+        }
+        if (!isMismatch && profile.name.isNotEmpty && result.candidateName.isNotEmpty) {
+             final pName = profile.name.toLowerCase().replaceAll(' ', '');
+             final rName = result.candidateName.toLowerCase().replaceAll(' ', '');
+             if (!pName.contains(rName) && !rName.contains(pName)) {
+                 isMismatch = true;
+                 warningMsg = 'Mismatch detected! Name does not match your 10th base document.';
+             }
+        }
+    }
+
+    final ocrState = ref.read(ocrProvider);
+    bool forceReview = ocrState.needsReview || isMismatch;
+
+    // LOW CONFIDENCE or MISMATCH => REVIEW
+    if (forceReview) {
       if (!mounted) return;
 
-      final confirmed = await Navigator.push<bool>(
+      final action = await Navigator.push<String>(
         context,
         MaterialPageRoute(
           builder: (_) => OcrReviewScreen(
             result: result,
+            warningMessage: warningMsg,
             onConfirm: ({
               required String docType,
               required String dateOfBirth,
@@ -927,6 +1050,8 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
               required String percentage,
               required String passingYear,
               required String extractedName,
+              String? courseName,
+              String? graduationStatus,
             }) async {
               final user = ref.read(currentUserProvider);
               if (user != null) {
@@ -939,6 +1064,10 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
                       passingYear: passingYear,
                       extractedName: extractedName,
                       primaryExamGoal: result.examName,
+                      courseName: courseName,
+                      graduationStatus: graduationStatus,
+                      isVerified: true,
+                      confidenceLevel: 1.0, // Manually reviewed counts as highly confident
                     );
               }
             },
@@ -946,7 +1075,15 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
         ),
       );
 
-      if (confirmed == true) {
+      if (action == 'save') {
+        final allDocs = HiveService.getAllDocs();
+        final unverifiedDocs = allDocs.where((d) => d.docType == result.docType && !d.isVerified).toList();
+        if (unverifiedDocs.isNotEmpty) {
+           final doc = unverifiedDocs.last;
+           doc.isVerified = true;
+           await HiveService.saveDoc(doc);
+        }
+
         ref.read(ocrProvider.notifier).markReviewed();
         ref.read(ocrProvider.notifier).reset();
 
@@ -963,6 +1100,12 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
             ),
           );
         }
+      } else if (action == 'reupload') {
+        ref.read(ocrProvider.notifier).reset();
+        if (mounted) {
+             _showScanSheet();
+        }
+        return;
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1002,6 +1145,10 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
               passingYear: result.year,
               extractedName: result.candidateName,
               primaryExamGoal: result.examName,
+              courseName: result.courseName,
+              graduationStatus: result.graduationStatus,
+              isVerified: true,
+              confidenceLevel: result.confidence,
             );
       }
     }
