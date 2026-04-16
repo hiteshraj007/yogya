@@ -1,6 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../../core/services/ocr_service.dart';
 import '../../../core/services/ocr_profile_validator.dart';
+import '../../../core/theme/theme_colors.dart';
+import '../../widgets/common/app_button.dart';
 
 class OcrReviewScreen extends StatefulWidget {
   final OcrResult result;
@@ -53,48 +56,32 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
 
   @override
   void dispose() {
-    _name.dispose();
-    _dob.dispose();
-    _uni.dispose();
-    _year.dispose();
-    _score.dispose();
-    _course.dispose();
-    _status.dispose();
+    _name.dispose(); _dob.dispose(); _uni.dispose(); _year.dispose();
+    _score.dispose(); _course.dispose(); _status.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
     if (_isSaving) return;
-
     final isGrad = widget.result.docType == 'graduation';
 
-    final e1 = OcrProfileValidator.validateDob(_dob.text);
     final e2 = OcrProfileValidator.validateYear(_year.text);
-    final e3 = OcrProfileValidator.validatePercentageOrCgpa(
-      _score.text,
-      isGraduation: isGrad,
-    );
-
-    final err = e1 ?? e2 ?? e3;
-    if (err != null) {
-      setState(() => _error = err);
-      return;
+    final e3 = OcrProfileValidator.validatePercentageOrCgpa(_score.text, isGraduation: isGrad);
+    
+    // Validate DOB only if it's 10th
+    String? e1;
+    if (widget.result.docType != '12th' && widget.result.docType != 'graduation') {
+       e1 = OcrProfileValidator.validateDob(_dob.text);
     }
 
-    setState(() {
-      _error = null;
-      _isSaving = true;
-    });
+    final err = e1 ?? e2 ?? e3;
+    if (err != null) { setState(() => _error = err); return; }
+
+    setState(() { _error = null; _isSaving = true; });
 
     try {
       await widget.onConfirm(
-        docType: widget.result.docType == 'graduation'
-            ? 'Graduation'
-            : widget.result.docType == '12th'
-                ? '12th Pass'
-                : widget.result.docType == '10th'
-                    ? '10th Pass'
-                    : '',
+        docType: widget.result.docType == 'graduation' ? 'Graduation' : widget.result.docType == '12th' ? '12th Pass' : widget.result.docType == '10th' ? '10th Pass' : '',
         dateOfBirth: _dob.text.trim(),
         university: _uni.text.trim(),
         percentage: _score.text.trim(),
@@ -103,14 +90,10 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
         courseName: _course.text.trim(),
         graduationStatus: _status.text.trim(),
       );
-
       if (mounted) Navigator.pop(context, 'save');
     } catch (_) {
       if (!mounted) return;
-      setState(() {
-        _error = 'Failed to save. Please try again.';
-        _isSaving = false;
-      });
+      setState(() { _error = 'Failed to save. Please try again.'; _isSaving = false; });
     }
   }
 
@@ -125,131 +108,284 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Scaffold(
+        backgroundColor: context.colors.bgDark,
         appBar: AppBar(
-          title: const Text('Review OCR Data'),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          title: Text('Review Document', style: TextStyle(color: context.colors.textPrimary)),
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
+            icon: Icon(Icons.close, color: context.colors.textPrimary),
             onPressed: _isSaving ? null : () => Navigator.pop(context, null),
           ),
         ),
         body: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              margin: const EdgeInsets.only(bottom: 16),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                border: Border.all(color: Colors.blue.shade200),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.info_outline_rounded, color: Colors.blue),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'This information is read-only. Please verify it matches your document. If incorrect, use the Re-upload button.',
-                      style: TextStyle(color: Colors.blue.shade800, fontSize: 13),
-                    ),
+            // ── DOCUMENT VIEW SECTION ────────────────────────
+            if (widget.result.imagePath != null)
+              _buildImagePreview(widget.result.imagePath!),
+
+            const SizedBox(height: 24),
+
+            // ── INFO BANNER ───────────────────────────────
+            _buildInfoBanner(),
+
+            const SizedBox(height: 20),
+
+            // ── FORM SECTION ──────────────────────────────
+            _buildSectionHeader('Verification Details'),
+            const SizedBox(height: 16),
+
+            // 🔥 LOCKED FIELDS FOR 12th AND GRADUATION 🔥
+            if (widget.result.docType == '12th' || widget.result.docType == 'graduation')
+              _buildLockBanner()
+            else ...[
+              _buildLabelText('Full Name'),
+              _buildDisplayField(_name, Icons.person_outline),
+              const SizedBox(height: 16),
+              _buildLabelText('Date of Birth'),
+              _buildDisplayField(_dob, Icons.calendar_today_outlined),
+              const SizedBox(height: 16),
+            ],
+
+            _buildLabelText('University / Board'),
+            _buildDisplayField(_uni, Icons.school_outlined),
+            const SizedBox(height: 16),
+
+            if (widget.result.docType == 'graduation') ...[
+              if (widget.result.courseName.isNotEmpty) ...[
+                _buildLabelText('Course Name'),
+                _buildDisplayField(_course, Icons.book_outlined),
+                const SizedBox(height: 16),
+              ],
+              if (widget.result.graduationStatus.isNotEmpty) ...[
+                _buildLabelText('Graduation Status'),
+                _buildDisplayField(_status, Icons.info_outline),
+                const SizedBox(height: 16),
+              ],
+            ],
+
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildLabelText('Year'),
+                      _buildDisplayField(_year, Icons.event_available_outlined),
+                    ],
                   ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildLabelText('Score'),
+                      _buildDisplayField(_score, Icons.analytics_outlined),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            if (_error != null) _buildErrorText(_error!),
+
+            const SizedBox(height: 40),
+
+            // ── ACTION BUTTONS ────────────────────────────
+            AppButton(
+              label: 'Proceed & Save',
+              onPressed: _submit,
+              isLoading: _isSaving,
+              icon: Icons.check_circle_outline,
+            ),
+            const SizedBox(height: 16),
+            
+            TextButton(
+              onPressed: _isSaving ? null : () => Navigator.pop(context, 'reupload'),
+              child: const Text(
+                'Information is incorrect? Re-upload',
+                style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w600),
+              ),
+            ),
+            const SizedBox(height: 30),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImagePreview(String path) {
+    return GestureDetector(
+      onTap: () => _showFullImage(path),
+      child: Center(
+        child: Container(
+          height: 150,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: context.colors.primary.withOpacity(0.3)),
+            image: DecorationImage(
+              image: FileImage(File(path)),
+              fit: BoxFit.cover,
+            ),
+          ),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              color: Colors.black26,
+            ),
+            child: const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.zoom_in_rounded, color: Colors.white, size: 32),
+                  SizedBox(height: 4),
+                  Text('Tap to View Document', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                 ],
               ),
             ),
-            if (widget.warningMessage != null) ...[
-              Container(
-                padding: const EdgeInsets.all(12),
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
-                  border: Border.all(color: Colors.orange),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.warning_amber_rounded, color: Colors.orange),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        widget.warningMessage!,
-                        style: const TextStyle(color: Colors.orange),
-                      ),
-                    ),
-                  ],
-                ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showFullImage(String path) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: EdgeInsets.zero,
+        child: Stack(
+          children: [
+            InteractiveViewer(
+              child: Center(child: Image.file(File(path))),
+            ),
+            Positioned(
+              top: 40,
+              right: 20,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white, size: 30),
+                onPressed: () => Navigator.pop(context),
               ),
-            ],
-            TextField(
-              controller: _name,
-              readOnly: true,
-              style: const TextStyle(color: Colors.grey),
-              decoration: const InputDecoration(labelText: 'Name'),
-            ),
-            TextField(
-              controller: _dob,
-              readOnly: true,
-              style: const TextStyle(color: Colors.grey),
-              decoration: const InputDecoration(labelText: 'DOB (DD/MM/YYYY)'),
-            ),
-            TextField(
-              controller: _uni,
-              readOnly: true,
-              style: const TextStyle(color: Colors.grey),
-              decoration: const InputDecoration(labelText: 'University / Board'),
-            ),
-            if (widget.result.docType == 'graduation' && widget.result.courseName.isNotEmpty)
-              TextField(
-                controller: _course,
-                readOnly: true,
-                style: const TextStyle(color: Colors.grey),
-                decoration: const InputDecoration(labelText: 'Course Name'),
-              ),
-            if (widget.result.docType == 'graduation' && widget.result.graduationStatus.isNotEmpty)
-              TextField(
-                controller: _status,
-                readOnly: true,
-                style: const TextStyle(color: Colors.grey),
-                decoration: const InputDecoration(labelText: 'Graduation Status'),
-              ),
-            TextField(
-              controller: _year,
-              readOnly: true,
-              keyboardType: TextInputType.number,
-              style: const TextStyle(color: Colors.grey),
-              decoration: const InputDecoration(labelText: 'Passing Year'),
-            ),
-            TextField(
-              controller: _score,
-              readOnly: true,
-              style: const TextStyle(color: Colors.grey),
-              decoration: const InputDecoration(labelText: 'Percentage / CGPA'),
-            ),
-            if (_error != null) ...[
-              const SizedBox(height: 10),
-              Text(_error!, style: const TextStyle(color: Colors.red)),
-            ],
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _isSaving ? null : _submit,
-              child: _isSaving
-                  ? const SizedBox(
-                      height: 18,
-                      width: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Confirm & Save'),
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton(
-              onPressed: _isSaving ? null : () => Navigator.pop(context, 'reupload'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.red,
-                side: const BorderSide(color: Colors.red),
-              ),
-              child: const Text('Re-upload Document'),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildInfoBanner() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: context.colors.primary.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: context.colors.primary.withOpacity(0.2)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.verified_user_outlined, color: context.colors.primary),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Text(
+              'OCR has extracted the following details. Please confirm if they are correct.',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLockBanner() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: 20),
+      decoration: BoxDecoration(
+        color: Colors.orange.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.orange.withOpacity(0.3)),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.lock_person_outlined, color: Colors.orange, size: 20),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Text(
+              'Name and DOB are fetched from your verified 10th marksheet for security.',
+              style: TextStyle(color: Colors.orange, fontSize: 12, fontWeight: FontWeight.w500),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDisplayField(TextEditingController controller, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: context.colors.bgSurface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: context.colors.textSecondary.withOpacity(0.1)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: context.colors.primary.withOpacity(0.7)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              controller.text.isEmpty ? 'Not found' : controller.text,
+              style: TextStyle(
+                color: controller.text.isEmpty ? context.colors.textSecondary : context.colors.textPrimary,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLabelText(String label) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 8),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: context.colors.textSecondary,
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Text(
+      title,
+      style: TextStyle(
+        color: context.colors.textPrimary,
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+      ),
+    );
+  }
+
+  Widget _buildErrorText(String error) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline, color: Colors.redAccent, size: 16),
+          const SizedBox(width: 8),
+          Text(error, style: const TextStyle(color: Colors.redAccent, fontSize: 13)),
+        ],
       ),
     );
   }

@@ -1,93 +1,115 @@
-import 'package:hive_flutter/hive_flutter.dart';
-
+import 'package:hive/hive.dart';
 part 'user_profile_model.g.dart';
 
-@HiveType(typeId: 0)
+@HiveType(typeId: 1)
 class UserProfileModel extends HiveObject {
   @HiveField(0)
-  final String id;
-
+  String id;
   @HiveField(1)
   String name;
-
   @HiveField(2)
   String email;
-
   @HiveField(3)
   String category;
-
   @HiveField(4)
   String gender;
-
   @HiveField(5)
   String dateOfBirth;
-
   @HiveField(6)
-  String qualification;
-
-  @HiveField(7)
-  String university;
-
-  @HiveField(8)
-  String passingYear;
-
-  @HiveField(9)
-  String percentage;
-
-  @HiveField(10)
   String phone;
-
-  @HiveField(11)
+  @HiveField(7)
   int profileCompletion;
-
-  @HiveField(12)
+  @HiveField(8)
   String stateOfDomicile;
-
-  @HiveField(13)
+  @HiveField(9)
   String primaryExamGoal;
-
-  @HiveField(14)
+  @HiveField(10)
   bool isVerified;
-
-  @HiveField(15)
+  @HiveField(11)
   double confidenceLevel;
 
+  // --- 10th Info (Base for Name & DOB) ---
+  @HiveField(12)
+  String tenthBoard;
+  @HiveField(13)
+  String tenthYear;
+  @HiveField(14)
+  String tenthPercentage;
+
+  // --- 12th Info ---
+  @HiveField(15)
+  String twelfthBoard;
   @HiveField(16)
-  String graduationStatus; // "Pursuing" or "Completed"
+  String twelfthYear;
+  @HiveField(17)
+  String twelfthPercentage;
+
+  // --- Graduation Info ---
+  @HiveField(18)
+  String gradCourse;
+  @HiveField(19)
+  String gradUniversity;
+  @HiveField(20)
+  String gradYear;
+  @HiveField(21)
+  String gradPercentage;
+  @HiveField(22)
+  String graduationStatus;
+
+  // Backward compatibility fields (optional, but keeping for safety)
+  @HiveField(23)
+  String qualification; 
+  @HiveField(24)
+  String university;
+  @HiveField(25)
+  String passingYear;
+  @HiveField(26)
+  String percentage;
 
   UserProfileModel({
     required this.id,
-    required this.name,
-    required this.email,
-    this.category        = 'General',
-    this.gender          = 'Male',
-    this.dateOfBirth     = '',
-    this.qualification   = '',
-    this.university      = '',
-    this.passingYear     = '',
-    this.percentage      = '',
-    this.phone           = '',
+    this.name = '',
+    this.email = '',
+    this.category = 'General',
+    this.gender = 'Male',
+    this.dateOfBirth = '',
+    this.phone = '',
     this.profileCompletion = 0,
     this.stateOfDomicile = '',
     this.primaryExamGoal = '',
-    this.isVerified      = false,
+    this.isVerified = false,
     this.confidenceLevel = 0.0,
+    this.tenthBoard = '',
+    this.tenthYear = '',
+    this.tenthPercentage = '',
+    this.twelfthBoard = '',
+    this.twelfthYear = '',
+    this.twelfthPercentage = '',
+    this.gradCourse = '',
+    this.gradUniversity = '',
+    this.gradYear = '',
+    this.gradPercentage = '',
     this.graduationStatus = '',
+    this.qualification = '',
+    this.university = '',
+    this.passingYear = '',
+    this.percentage = '',
   });
 
-  // Profile completion calculate karo
   int calculateCompletion() {
-    int filled = 0;
-    if (name.isNotEmpty)          filled++;
-    if (email.isNotEmpty)         filled++;
-    if (dateOfBirth.isNotEmpty)   filled++;
-    if (qualification.isNotEmpty) filled++;
-    if (university.isNotEmpty)    filled++;
-    if (passingYear.isNotEmpty)   filled++;
-    if (percentage.isNotEmpty)    filled++;
-    if (phone.isNotEmpty)         filled++;
-    if (stateOfDomicile.isNotEmpty) filled++;
-    if (primaryExamGoal.isNotEmpty) filled++;
-    return ((filled / 10) * 100).round();
+    int score = 0;
+    if (name.isNotEmpty) score += 15;
+    if (email.isNotEmpty) score += 10;
+    if (phone.isNotEmpty) score += 10;
+    if (dateOfBirth.isNotEmpty) score += 15;
+    if (stateOfDomicile.isNotEmpty) score += 10;
+    if (primaryExamGoal.isNotEmpty) score += 10;
+    
+    // Academic Progress (Max 30)
+    if (tenthBoard.isNotEmpty) score += 10;
+    if (twelfthBoard.isNotEmpty) score += 10;
+    if (gradCourse.isNotEmpty) score += 10;
+    
+    return score.clamp(0, 100);
   }
 }

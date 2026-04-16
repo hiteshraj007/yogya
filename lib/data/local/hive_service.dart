@@ -18,10 +18,28 @@ class HiveService {
     Hive.registerAdapter(AcademicDocModelAdapter());
     Hive.registerAdapter(EligibilityResultModelAdapter());
 
-    // Boxes open karo
-    await Hive.openBox<UserProfileModel>(_userBox);
-    await Hive.openBox<AcademicDocModel>(_docsBox);
-    await Hive.openBox<EligibilityResultModel>(_eligibilityBox);
+    // Boxes open karo (with safety for schema changes)
+    try {
+      await Hive.openBox<UserProfileModel>(_userBox);
+    } catch (e) {
+      // Agar schema mismatch hota hai toh box delete karke naya banao
+      await Hive.deleteBoxFromDisk(_userBox);
+      await Hive.openBox<UserProfileModel>(_userBox);
+    }
+
+    try {
+      await Hive.openBox<AcademicDocModel>(_docsBox);
+    } catch (e) {
+      await Hive.deleteBoxFromDisk(_docsBox);
+      await Hive.openBox<AcademicDocModel>(_docsBox);
+    }
+
+    try {
+      await Hive.openBox<EligibilityResultModel>(_eligibilityBox);
+    } catch (e) {
+      await Hive.deleteBoxFromDisk(_eligibilityBox);
+      await Hive.openBox<EligibilityResultModel>(_eligibilityBox);
+    }
   }
 
   // ── UserProfile CRUD ─────────────────────────────────────

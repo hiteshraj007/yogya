@@ -1,4 +1,4 @@
-import '../../../core/theme/theme_colors.dart';
+﻿import '../../../core/theme/theme_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // import 'package:firebase_auth/firebase_auth.dart';
@@ -12,7 +12,7 @@ import '../../widgets/common/app_text_field.dart';
 import 'widgets/category_selector.dart';
 import 'package:go_router/go_router.dart';
 
-// ── Change 1: ConsumerStatefulWidget ──────────────────────
+// â”€â”€ Change 1: ConsumerStatefulWidget â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class ProfileScreen extends ConsumerStatefulWidget {
   ProfileScreen({super.key});
 
@@ -20,7 +20,7 @@ class ProfileScreen extends ConsumerStatefulWidget {
   ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-// ── Change 2: ConsumerState ────────────────────────────────
+// â”€â”€ Change 2: ConsumerState â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class _ProfileScreenState extends ConsumerState<ProfileScreen>
     with SingleTickerProviderStateMixin {
   final _nameCtrl = TextEditingController();
@@ -28,11 +28,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   final _phoneCtrl = TextEditingController();
   final _dobCtrl = TextEditingController();
   final _qualCtrl = TextEditingController();
+  final _tenthBoardCtrl = TextEditingController();
+  final _tenthYearCtrl = TextEditingController();
+  final _tenthPercentCtrl = TextEditingController();
+  final _twelfthBoardCtrl = TextEditingController();
+  final _twelfthYearCtrl = TextEditingController();
+  final _twelfthPercentCtrl = TextEditingController();
+  final _gradCourseCtrl = TextEditingController();
+  final _gradUniCtrl = TextEditingController();
+  final _gradYearCtrl = TextEditingController();
+  final _gradPercentCtrl = TextEditingController();
   final _uniCtrl = TextEditingController();
   final _yearCtrl = TextEditingController();
   final _percentCtrl = TextEditingController();
   final _stateCtrl = TextEditingController();
   final _examGoalCtrl = TextEditingController();
+  
+  String _gradStatus = 'Pursuing';
 
   String _selectedCategory = 'General';
   String _selectedGender = 'Male';
@@ -70,7 +82,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
 
   //   _ctrl.forward();
 
-  //   // ── Hive se saved profile load karo ─────────────────
+  //   // â”€â”€ Hive se saved profile load karo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   //   WidgetsBinding.instance.addPostFrameCallback((_) {
   //     _loadSavedProfile();
   //   });
@@ -103,7 +115,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
 
     _ctrl.forward();
 
-    // ── Pehle load karo, phir fields fill karo ──
+    // â”€â”€ Pehle load karo, phir fields fill karo â”€â”€
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final user = ref.read(currentUserProvider);
       if (user != null) {
@@ -113,13 +125,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     });
   }
 
-  // ── Hive se data load karke fields fill karo ──────────
+  // â”€â”€ Hive se data load karke fields fill karo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   void _loadSavedProfile() {
     final user = ref.read(currentUserProvider);
     final profile = ref.read(profileNotifierProvider).profile;
 
     if (profile != null) {
-      // Saved profile hai — fields fill karo
+      // Saved profile hai â€” fields fill karo
       _nameCtrl.text = profile.name;
       _emailCtrl.text = profile.email;
       _phoneCtrl.text = profile.phone;
@@ -137,11 +149,27 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
       _stateCtrl.text = profile.stateOfDomicile;
       _examGoalCtrl.text = profile.primaryExamGoal;
       setState(() {
-        _selectedCategory = profile.category;
         _selectedGender = profile.gender;
+        _gradStatus = profile.graduationStatus.isNotEmpty ? profile.graduationStatus : 'Pursuing';
       });
+
+      // 10th Info
+      _tenthBoardCtrl.text = profile.tenthBoard;
+      _tenthYearCtrl.text = profile.tenthYear;
+      _tenthPercentCtrl.text = profile.tenthPercentage;
+
+      // 12th Info
+      _twelfthBoardCtrl.text = profile.twelfthBoard;
+      _twelfthYearCtrl.text = profile.twelfthYear;
+      _twelfthPercentCtrl.text = profile.twelfthPercentage;
+
+      // Grad Info
+      _gradCourseCtrl.text = profile.gradCourse;
+      _gradUniCtrl.text = profile.gradUniversity;
+      _gradYearCtrl.text = profile.gradYear;
+      _gradPercentCtrl.text = profile.gradPercentage;
     } else if (user != null) {
-      // Pehli baar — Firebase user se basic info lo
+      // Pehli baar â€” Firebase user se basic info lo
       _nameCtrl.text = user.displayName ?? '';
       _emailCtrl.text = user.email ?? '';
     }
@@ -150,17 +178,133 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   @override
   void dispose() {
     _nameCtrl.dispose();
-    _emailCtrl.dispose();
-    _phoneCtrl.dispose();
-    _dobCtrl.dispose();
-    _qualCtrl.dispose();
-    _uniCtrl.dispose();
-    _yearCtrl.dispose();
     _percentCtrl.dispose();
+    _tenthBoardCtrl.dispose();
+    _tenthYearCtrl.dispose();
+    _tenthPercentCtrl.dispose();
+    _twelfthBoardCtrl.dispose();
+    _twelfthYearCtrl.dispose();
+    _twelfthPercentCtrl.dispose();
+    _gradCourseCtrl.dispose();
+    _gradUniCtrl.dispose();
+    _gradYearCtrl.dispose();
+    _gradPercentCtrl.dispose();
     _stateCtrl.dispose();
     _examGoalCtrl.dispose();
     _ctrl.dispose();
     super.dispose();
+  }
+
+  String _computeHighestQual() {
+    if (_gradStatus == 'Completed' && _gradCourseCtrl.text.isNotEmpty) {
+      return 'Graduation';
+    }
+    if (_twelfthBoardCtrl.text.isNotEmpty) {
+      return '12th Pass';
+    }
+    if (_tenthBoardCtrl.text.isNotEmpty) {
+      return '10th Pass';
+    }
+    return 'Not Specified';
+  }
+
+  Widget _buildSubHeader(String title, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: context.colors.primary.withOpacity(0.7)),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: context.colors.textPrimary.withOpacity(0.8),
+            fontFamily: 'Poppins',
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDisabledField({required String label, required String value, IconData? icon}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: context.colors.bgCardLight.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: context.colors.glassBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(fontSize: 11, color: context.colors.textSecondary, fontFamily: 'Poppins'),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 14, color: context.colors.primary),
+                const SizedBox(width: 8),
+              ],
+              Text(
+                value.isEmpty ? 'Not set' : value,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: value.isEmpty ? context.colors.textSecondary : context.colors.textPrimary,
+                  fontFamily: 'Poppins',
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Graduation Status',
+          style: TextStyle(fontSize: 12, color: context.colors.textSecondary, fontFamily: 'Poppins'),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: ['Pursuing', 'Completed'].map((s) {
+            final isSelected = _gradStatus == s;
+            return Expanded(
+              child: GestureDetector(
+                onTap: () => setState(() => _gradStatus = s),
+                child: Container(
+                  margin: EdgeInsets.only(right: s == 'Pursuing' ? 8 : 0),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: isSelected ? context.colors.primary.withOpacity(0.1) : Colors.transparent,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: isSelected ? context.colors.primary : context.colors.glassBorder),
+                  ),
+                  child: Center(
+                    child: Text(
+                      s,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                        color: isSelected ? context.colors.primary : context.colors.textSecondary,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
   }
 
   Widget _animItem(int index, Widget child) {
@@ -171,7 +315,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     );
   }
 
-  // ── Save button action — real Hive save ───────────────
+  // â”€â”€ Save button action â€” real Hive save â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   Future<void> _handleSave() async {
     final user = ref.read(currentUserProvider);
     if (user == null) return;
@@ -185,13 +329,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
           category: _selectedCategory,
           gender: _selectedGender,
           dateOfBirth: _dobCtrl.text.trim(),
-          qualification: _qualCtrl.text.trim(),
-          university: _uniCtrl.text.trim(),
-          passingYear: _yearCtrl.text.trim(),
-          percentage: _percentCtrl.text.trim(),
           phone: _phoneCtrl.text.trim(),
           stateOfDomicile: _stateCtrl.text.trim(),
           primaryExamGoal: _examGoalCtrl.text.trim(),
+          tenthBoard: _tenthBoardCtrl.text.trim(),
+          tenthYear: _tenthYearCtrl.text.trim(),
+          tenthPercentage: _tenthPercentCtrl.text.trim(),
+          twelfthBoard: _twelfthBoardCtrl.text.trim(),
+          twelfthYear: _twelfthYearCtrl.text.trim(),
+          twelfthPercentage: _twelfthPercentCtrl.text.trim(),
+          gradCourse: _gradCourseCtrl.text.trim(),
+          gradUniversity: _gradUniCtrl.text.trim(),
+          gradYear: _gradYearCtrl.text.trim(),
+          gradPercentage: _gradPercentCtrl.text.trim(),
+          graduationStatus: _gradStatus,
         );
 
     setState(() => _isLoading = false);
@@ -254,7 +405,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
           physics: BouncingScrollPhysics(),
           child: Column(
             children: [
-              // ── Profile Header ──────────────────────────
+              // â”€â”€ Profile Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
               _animItem(
                 0,
                 _buildProfileHeader(
@@ -267,7 +418,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
 
               SizedBox(height: 24),
 
-              // ── Personal Info ───────────────────────────
+              // â”€â”€ Personal Info â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
               _animItem(
                 1,
                 _buildSection(
@@ -294,7 +445,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
 
               SizedBox(height: 16),
 
-              // ── Category ────────────────────────────────
+              // â”€â”€ Category â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
               _animItem(
                 2,
                 _buildSection(
@@ -313,50 +464,105 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
 
               SizedBox(height: 16),
 
-              // ── Academic Info ───────────────────────────
+              // â”€â”€ Academic Info â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
               _animItem(
                 3,
                 _buildSection(
                   'Academic Information',
                   Icons.school_outlined,
                   [
-                    AppTextField(
+                    // Computed Highest Qualification (Read Only)
+                    _buildDisabledField(
                       label: 'Highest Qualification',
-                      controller: _qualCtrl,
-                      prefixIcon: Icons.school_rounded,
+                      value: _computeHighestQual(),
+                      icon: Icons.workspace_premium_rounded,
                     ),
-                    SizedBox(height: 16),
+                    
+                    const SizedBox(height: 24),
+                    _buildSubHeader('10th Standard', Icons.looks_one_rounded),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(child: _buildDisabledField(label: 'Board', value: _tenthBoardCtrl.text)),
+                        const SizedBox(width: 12),
+                        Expanded(child: _buildDisabledField(label: 'Year', value: _tenthYearCtrl.text)),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    _buildDisabledField(label: 'Percentage', value: _tenthPercentCtrl.text),
+
+                    const SizedBox(height: 24),
+                    _buildSubHeader('12th Standard', Icons.looks_two_rounded),
+                    const SizedBox(height: 12),
                     AppTextField(
-                      label: 'University / Board',
-                      controller: _uniCtrl,
+                      label: 'Board',
+                      controller: _twelfthBoardCtrl,
                       prefixIcon: Icons.account_balance_rounded,
                     ),
-                    SizedBox(height: 16),
+                    const SizedBox(height: 12),
                     Row(
                       children: [
                         Expanded(
                           child: AppTextField(
                             label: 'Year',
-                            controller: _yearCtrl,
+                            controller: _twelfthYearCtrl,
                             keyboardType: TextInputType.number,
                           ),
                         ),
-                        SizedBox(width: 16),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: AppTextField(
-                            label: 'Percentage/CGPA',
-                            controller: _percentCtrl,
+                            label: 'Percentage',
+                            controller: _twelfthPercentCtrl,
                           ),
                         ),
                       ],
                     ),
+
+                    const SizedBox(height: 24),
+                    _buildSubHeader('Graduation (College)', Icons.school_rounded),
+                    const SizedBox(height: 12),
+                    AppTextField(
+                      label: 'Course',
+                      controller: _gradCourseCtrl,
+                      prefixIcon: Icons.book_rounded,
+                      hintText: 'e.g. B.Tech, B.Sc',
+                    ),
+                    const SizedBox(height: 12),
+                    AppTextField(
+                      label: 'University',
+                      controller: _gradUniCtrl,
+                      prefixIcon: Icons.account_balance_rounded,
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: AppTextField(
+                            label: 'Year',
+                            controller: _gradYearCtrl,
+                            keyboardType: TextInputType.number,
+                            hintText: 'Passing/Exp. Year',
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: AppTextField(
+                            label: 'CGPA / Percentage',
+                            controller: _gradPercentCtrl,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    _buildStatusSelector(),
                   ],
                 ),
               ),
 
               SizedBox(height: 16),
 
-              // ── Academic Documents (Phase 3) ────────────
+              // â”€â”€ Academic Documents (Phase 3) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
               _animItem(
                 3,
                 _buildSection(
@@ -374,7 +580,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
 
               SizedBox(height: 16),
 
-              // ── Contact Info ────────────────────────────
+              // â”€â”€ Contact Info â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
               _animItem(
                 4,
                 _buildSection(
@@ -400,7 +606,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
 
               SizedBox(height: 16),
 
-              // ── Additional Info (Section 9.1) ─────────────
+              // â”€â”€ Additional Info (Section 9.1) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
               _animItem(
                 5,
                 _buildSection(
@@ -425,7 +631,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
 
               SizedBox(height: 24),
 
-              // ── Check Eligibility Button ────────────────
+              // â”€â”€ Check Eligibility Button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
               _animItem(
                 5,
                 Padding(
@@ -440,7 +646,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
 
               SizedBox(height: 16),
 
-              // ── Save Button ─────────────────────────────
+              // â”€â”€ Save Button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
               _animItem(
                 5,
                 Padding(
@@ -462,7 +668,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     );
   }
 
-  // ── Profile Header widget ────────────────────────────────
+  // â”€â”€ Profile Header widget â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   Widget _buildProfileHeader({
     required String initials,
     required String name,
