@@ -56,9 +56,9 @@ class UserProfileModel extends HiveObject {
   @HiveField(22)
   String graduationStatus;
 
-  // Backward compatibility fields (optional, but keeping for safety)
+  // Backward compatibility fields
   @HiveField(23)
-  String qualification; 
+  String qualification;
   @HiveField(24)
   String university;
   @HiveField(25)
@@ -104,12 +104,12 @@ class UserProfileModel extends HiveObject {
     if (dateOfBirth.isNotEmpty) score += 15;
     if (stateOfDomicile.isNotEmpty) score += 10;
     if (primaryExamGoal.isNotEmpty) score += 10;
-    
+
     // Academic Progress (Max 30)
     if (tenthBoard.isNotEmpty) score += 10;
     if (twelfthBoard.isNotEmpty) score += 10;
     if (gradCourse.isNotEmpty) score += 10;
-    
+
     return score.clamp(0, 100);
   }
 }

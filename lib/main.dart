@@ -105,12 +105,12 @@
 
 
 
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+
 import 'firebase_options.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
@@ -119,33 +119,23 @@ import 'presentation/providers/profile_provider.dart';
 import 'presentation/providers/settings_provider.dart';
 import 'core/services/notification_service.dart';
 
-void main() async {
-  print('🚀 UNBLOCKING STARTUP...');
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Firebase (non-blocking safe init)
   try {
-    print('📦 Initializing Firebase...');
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
-    ).timeout(const Duration(seconds: 10));
-    print('✅ Firebase Ready');
-  } catch (e) {
-    print('❌ Firebase Init Failed/Timed out: $e');
+    );
+  } catch (_) {
+    // Keep app alive even if firebase fails in debug/dev
   }
 
-  // Notification service handles its own errors and shouldn't block main
-  print('🔔 Initializing Notifications...');
-  NotificationService.instance.initialize().catchError((e) => print('❌ Notification Error: $e'));
+  // Hive init must complete before runApp
+  await HiveService.init();
 
-  try {
-    print('🗄️ Initializing Hive...');
-    await HiveService.init().timeout(const Duration(seconds: 8));
-    print('✅ Hive Ready');
-  } catch (e) {
-    print('❌ Hive Init Failed/Timed out: $e');
-    // We already have a try/catch inside HiveService.init, 
-    // but this catch ensures main() doesn't hang.
-  }
+  // Notifications should not block startup
+  NotificationService.instance.initialize().catchError((_) {});
 
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -158,7 +148,6 @@ void main() async {
     DeviceOrientation.portraitUp,
   ]);
 
-  print('📱 Launching App...');
   runApp(
     const ProviderScope(
       child: YogyaApp(),
@@ -175,7 +164,7 @@ class YogyaApp extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider);
     final locale = ref.watch(appLocaleProvider);
 
-    // Profile load karo on app start
+    // Load profile on app start
     ref.watch(profileLoaderProvider);
 
     return MaterialApp.router(

@@ -5,38 +5,60 @@ import '../models/eligibility_result_model.dart';
 
 class HiveService {
   // Box names
-  static const String _userBox        = 'userProfile';
-  static const String _docsBox        = 'academicDocs';
+  static const String _userBox = 'userProfile';
+  static const String _docsBox = 'academicDocs';
   static const String _eligibilityBox = 'eligibilityResults';
+  static const String _attemptHistoryBox = 'attemptHistory';
 
   // ── Initialize ──────────────────────────────────────────
   static Future<void> init() async {
     await Hive.initFlutter();
 
-    // Adapters register karo
-    Hive.registerAdapter(UserProfileModelAdapter());
-    Hive.registerAdapter(AcademicDocModelAdapter());
-    Hive.registerAdapter(EligibilityResultModelAdapter());
+    // Register adapters safely (avoid duplicate registration crash)
+    if (!Hive.isAdapterRegistered(1)) {
+      Hive.registerAdapter(UserProfileModelAdapter());
+    }
+    if (!Hive.isAdapterRegistered(2)) {
+      Hive.registerAdapter(EligibilityResultModelAdapter());
+    }
+    if (!Hive.isAdapterRegistered(3)) {
+      Hive.registerAdapter(AcademicDocModelAdapter());
+    }
 
-    // Boxes open karo (with safety for schema changes)
+    await _openUserBoxSafe();
+    await _openDocsBoxSafe();
+    await _openEligibilityBoxSafe();
+
+    if (!Hive.isBoxOpen(_attemptHistoryBox)) {
+      await Hive.openBox(_attemptHistoryBox);
+    }
+  }
+
+  static Future<void> _openUserBoxSafe() async {
+    if (Hive.isBoxOpen(_userBox)) return;
     try {
       await Hive.openBox<UserProfileModel>(_userBox);
-    } catch (e) {
-      // Agar schema mismatch hota hai toh box delete karke naya banao
+    } catch (_) {
       await Hive.deleteBoxFromDisk(_userBox);
       await Hive.openBox<UserProfileModel>(_userBox);
     }
+  }
 
+  static Future<void> _openDocsBoxSafe() async {
+    if (Hive.isBoxOpen(_docsBox)) return;
     try {
       await Hive.openBox<AcademicDocModel>(_docsBox);
-    } catch (e) {
+    } catch (_) {
       await Hive.deleteBoxFromDisk(_docsBox);
       await Hive.openBox<AcademicDocModel>(_docsBox);
     }
+  }
 
+  static Future<void> _openEligibilityBoxSafe() async {
+    if (Hive.isBoxOpen(_eligibilityBox)) return;
     try {
       await Hive.openBox<EligibilityResultModel>(_eligibilityBox);
-    } catch (e) {
+    } catch (_) {
       await Hive.deleteBoxFromDisk(_eligibilityBox);
       await Hive.openBox<EligibilityResultModel>(_eligibilityBox);
     }
@@ -47,14 +69,17 @@ class HiveService {
       Hive.box<UserProfileModel>(_userBox);
 
   static Future<void> saveUserProfile(UserProfileModel profile) async {
+    await _openUserBoxSafe();
     await _userProfileBox.put(profile.id, profile);
   }
 
   static UserProfileModel? getUserProfile(String uid) {
+    if (!Hive.isBoxOpen(_userBox)) return null;
     return _userProfileBox.get(uid);
   }
 
   static Future<void> deleteUserProfile(String uid) async {
+    await _openUserBoxSafe();
     await _userProfileBox.delete(uid);
   }
 
@@ -63,18 +88,22 @@ class HiveService {
       Hive.box<AcademicDocModel>(_docsBox);
 
   static Future<void> saveDoc(AcademicDocModel doc) async {
+    await _openDocsBoxSafe();
     await _academicDocsBox.put(doc.id, doc);
   }
 
   static List<AcademicDocModel> getAllDocs() {
+    if (!Hive.isBoxOpen(_docsBox)) return [];
     return _academicDocsBox.values.toList();
   }
 
   static AcademicDocModel? getDoc(String id) {
+    if (!Hive.isBoxOpen(_docsBox)) return null;
     return _academicDocsBox.get(id);
   }
 
   static Future<void> deleteDoc(String id) async {
+    await _openDocsBoxSafe();
     await _academicDocsBox.delete(id);
   }
 
@@ -84,14 +113,17 @@ class HiveService {
 
   static Future<void> saveEligibilityResult(
       EligibilityResultModel result) async {
+    await _openEligibilityBoxSafe();
     await _eligibilityBox2.put(result.examId, result);
   }
 
   static List<EligibilityResultModel> getAllEligibilityResults() {
+    if (!Hive.isBoxOpen(_eligibilityBox)) return [];
     return _eligibilityBox2.values.toList();
   }
 
   static Future<void> clearEligibilityResults() async {
+    await _openEligibilityBoxSafe();
     await _eligibilityBox2.clear();
   }
 }

@@ -1,0 +1,9 @@
+{
+  "name": "yogya-seed",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "firebase-admin": "^12.1.0"
+  }
+}

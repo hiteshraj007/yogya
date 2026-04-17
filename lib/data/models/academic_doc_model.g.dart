@@ -8,7 +8,7 @@ part of 'academic_doc_model.dart';
 
 class AcademicDocModelAdapter extends TypeAdapter<AcademicDocModel> {
   @override
-  final int typeId = 1;
+  final int typeId = 3;
 
   @override
   AcademicDocModel read(BinaryReader reader) {

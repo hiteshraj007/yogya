@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../data/remote/api_service.dart';
+import '../../data/remote/firestore_exam_service.dart';
 
 String examIdsToKey(Set<String>? examIds) {
   if (examIds == null || examIds.isEmpty) return '';
@@ -19,14 +18,14 @@ Set<String>? keyToExamIds(String key) {
 
 final deadlinesProvider =
     FutureProvider.family<List<Map<String, dynamic>>, String>((ref, key) async {
-  return ApiService.instance.fetchDeadlines(
+  return FirestoreExamService.instance.fetchDeadlines(
     prioritizedExamIds: keyToExamIds(key),
   );
 });
 
 final timelineEventsProvider =
     FutureProvider.family<List<Map<String, dynamic>>, String>((ref, key) async {
-  return ApiService.instance.fetchTimelineEvents(
+  return FirestoreExamService.instance.fetchTimelineEvents(
     prioritizedExamIds: keyToExamIds(key),
   );
 });
