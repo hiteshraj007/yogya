@@ -11,6 +11,8 @@ class AppTextField extends StatefulWidget {
   final bool obscureText;
   final String? Function(String?)? validator;
   final bool isDark;
+  final bool readOnly;
+  final VoidCallback? onTap;
 
   AppTextField({
     super.key,
@@ -22,6 +24,8 @@ class AppTextField extends StatefulWidget {
     this.obscureText = false,
     this.validator,
     this.isDark = true,
+    this.readOnly = false,
+    this.onTap,
   });
 
   @override
@@ -52,6 +56,8 @@ class _AppTextFieldState extends State<AppTextField> {
           keyboardType: widget.keyboardType,
           obscureText: isPassword ? _obscure : false,
           validator: widget.validator,
+          readOnly: widget.readOnly,
+          onTap: widget.onTap,
           style: TextStyle(
             color: widget.isDark ? context.colors.textPrimary : context.colors.textDark,
             fontFamily: 'Poppins',
