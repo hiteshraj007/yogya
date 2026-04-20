@@ -8,6 +8,8 @@ class EligibilityPulseCard extends StatefulWidget {
   final String examCode;
   final bool isEligible;
   final Map<String, bool> criteria;
+  final int attemptsUsed;
+  final int attemptsAllowed;
 
   EligibilityPulseCard({
     super.key,
@@ -15,6 +17,8 @@ class EligibilityPulseCard extends StatefulWidget {
     required this.examCode,
     required this.isEligible,
     required this.criteria,
+    required this.attemptsUsed,
+    required this.attemptsAllowed,
   });
 
   @override
@@ -127,6 +131,27 @@ class _EligibilityPulseCardState extends State<EligibilityPulseCard>
                     ],
                   ),
                 ),
+                // Attempts badge
+                if (widget.isEligible)
+                  Container(
+                    margin: EdgeInsets.only(right: 8),
+                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: context.colors.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      widget.attemptsAllowed == -1
+                          ? '∞ Left'
+                          : '${widget.attemptsAllowed - widget.attemptsUsed} Left',
+                      style: TextStyle(
+                        color: context.colors.primary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                  ),
                 // Status badge
                 Container(
                   padding: EdgeInsets.symmetric(
