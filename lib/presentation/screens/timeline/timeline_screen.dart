@@ -127,7 +127,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
           .toSet();
     }
     final examKey = examIdsToKey(
-      validExamIds.isEmpty ? {'NONE'} : validExamIds,
+      validExamIds.isEmpty ? {'ALL_EXAMS'} : validExamIds,
     );
     final timelineAsync = ref.watch(timelineStreamProvider(examKey));
     final fallbackEvents = ExamTimelineService.instance.timelineEvents(

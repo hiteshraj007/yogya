@@ -85,7 +85,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         .map((r) => r.examId)
         .toSet();
     final examKey = examIdsToKey(
-      eligibleExamIds.isEmpty ? {'NONE'} : eligibleExamIds,
+      eligibleExamIds.isEmpty ? {'ALL_EXAMS'} : eligibleExamIds,
     );
     final deadlinesAsync = ref.watch(deadlinesProvider(examKey));
     final fallbackDeadlines = ExamTimelineService.instance.upcomingDeadlines(

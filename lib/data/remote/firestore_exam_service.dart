@@ -90,11 +90,13 @@ class FirestoreExamService {
     Query<Map<String, dynamic>> query = _db.collection('timeline_events');
 
     if (prioritizedExamIds != null) {
-      if (prioritizedExamIds.isEmpty) {
+      if (prioritizedExamIds.contains('NONE')) {
         return Stream.value([]);
       }
-      if (prioritizedExamIds.length <= 10) {
-        query = query.where('examId', whereIn: prioritizedExamIds.toList());
+      if (!prioritizedExamIds.contains('ALL_EXAMS') && prioritizedExamIds.isNotEmpty) {
+        if (prioritizedExamIds.length <= 10) {
+          query = query.where('examId', whereIn: prioritizedExamIds.toList());
+        }
       }
     }
 
@@ -125,11 +127,13 @@ class FirestoreExamService {
     Query<Map<String, dynamic>> query = _db.collection('exam_deadlines');
 
     if (prioritizedExamIds != null) {
-      if (prioritizedExamIds.isEmpty) {
+      if (prioritizedExamIds.contains('NONE')) {
         return Stream.value([]);
       }
-      if (prioritizedExamIds.length <= 10) {
-        query = query.where('examId', whereIn: prioritizedExamIds.toList());
+      if (!prioritizedExamIds.contains('ALL_EXAMS') && prioritizedExamIds.isNotEmpty) {
+        if (prioritizedExamIds.length <= 10) {
+          query = query.where('examId', whereIn: prioritizedExamIds.toList());
+        }
       }
     }
 
