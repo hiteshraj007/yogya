@@ -97,16 +97,15 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
     }
   }
 
-  Future<bool> _onWillPop() async {
-    if (_isSaving) return false;
-    Navigator.pop(context, null);
-    return false;
-  }
-
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: _onWillPop,
+    return PopScope(
+      canPop: !_isSaving,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && !_isSaving) {
+          Navigator.pop(context, null);
+        }
+      },
       child: Scaffold(
         backgroundColor: context.colors.bgDark,
         appBar: AppBar(
@@ -137,9 +136,9 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
                 padding: const EdgeInsets.all(12),
                 margin: const EdgeInsets.only(bottom: 20),
                 decoration: BoxDecoration(
-                  color: Colors.redAccent.withOpacity(0.1),
+                  color: Colors.redAccent.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
+                  border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
@@ -221,13 +220,13 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
                 decoration: BoxDecoration(
                   color: context.colors.bgSurface,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: context.colors.textSecondary.withOpacity(0.1)),
+                  border: Border.all(color: context.colors.textSecondary.withValues(alpha: 0.1)),
                 ),
                 child: ListView.separated(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: widget.result.subjectMarks.length,
-                  separatorBuilder: (context, index) => Divider(color: context.colors.textSecondary.withOpacity(0.1), height: 1),
+                  separatorBuilder: (context, index) => Divider(color: context.colors.textSecondary.withValues(alpha: 0.1), height: 1),
                   itemBuilder: (context, index) {
                     final key = widget.result.subjectMarks.keys.elementAt(index);
                     final value = widget.result.subjectMarks[key];
@@ -271,9 +270,9 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.orangeAccent.withOpacity(0.05),
+                  color: Colors.orangeAccent.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.orangeAccent.withOpacity(0.3)),
+                  border: Border.all(color: Colors.orangeAccent.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
@@ -326,7 +325,7 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
           width: double.infinity,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: context.colors.primary.withOpacity(0.3)),
+            border: Border.all(color: context.colors.primary.withValues(alpha: 0.3)),
             image: DecorationImage(
               image: FileImage(File(path)),
               fit: BoxFit.cover,
@@ -382,9 +381,9 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: context.colors.primary.withOpacity(0.1),
+        color: context.colors.primary.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: context.colors.primary.withOpacity(0.2)),
+        border: Border.all(color: context.colors.primary.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
@@ -406,15 +405,15 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
       padding: const EdgeInsets.all(12),
       margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
-        color: Colors.orange.withOpacity(0.1),
+        color: Colors.orange.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.orange.withOpacity(0.3)),
+        border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
       ),
       child: const Row(
         children: [
           Icon(Icons.lock_person_outlined, color: Colors.orange, size: 20),
-          const SizedBox(width: 12),
-          const Expanded(
+          SizedBox(width: 12),
+          Expanded(
             child: Text(
               'Name and DOB are fetched from your verified 10th marksheet for security.',
               style: TextStyle(color: Colors.orange, fontSize: 12, fontWeight: FontWeight.w500),
@@ -431,11 +430,11 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
       decoration: BoxDecoration(
         color: context.colors.bgSurface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: context.colors.textSecondary.withOpacity(0.1)),
+        border: Border.all(color: context.colors.textSecondary.withValues(alpha: 0.1)),
       ),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: context.colors.primary.withOpacity(0.7)),
+          Icon(icon, size: 20, color: context.colors.primary.withValues(alpha: 0.7)),
           const SizedBox(width: 12),
           Expanded(
             child: Text(

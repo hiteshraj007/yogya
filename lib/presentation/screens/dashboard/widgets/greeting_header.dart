@@ -6,7 +6,7 @@ class GreetingHeader extends StatelessWidget {
   final VoidCallback onMenuTap;
   final VoidCallback onNotificationTap;
 
-  GreetingHeader({
+  const GreetingHeader({
     super.key,
     required this.userName,
     required this.onMenuTap,
@@ -23,7 +23,7 @@ class GreetingHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.fromLTRB(20, 16, 20, 0),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
       child: Row(
         children: [
           GestureDetector(
@@ -43,7 +43,7 @@ class GreetingHeader extends StatelessWidget {
               ),
             ),
           ),
-          SizedBox(width: 16),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

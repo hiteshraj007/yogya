@@ -3,7 +3,6 @@ import '../../../../core/theme/theme_colors.dart';
 import '../../../../data/local/hive_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../data/providers/auth_provider.dart';
-import '../../../../core/services/exam_timeline_service.dart';
 import '../../../providers/remote_data_provider.dart';
 
 class NotificationsSheet extends ConsumerWidget {

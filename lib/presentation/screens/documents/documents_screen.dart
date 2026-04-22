@@ -611,7 +611,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
     bool isMismatch = false;
     String? warningMsg;
 
-    bool _isSameDate(String d1, String d2) {
+    bool isSameDate(String d1, String d2) {
       final s1 = d1.trim();
       final s2 = d2.trim();
       if (s1 == s2) return true;
@@ -635,7 +635,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
 
     if (profile != null && (result.docType == '12th' || result.docType == 'graduation' || result.docType == 'pg')) {
       if (profile.dateOfBirth.trim().isNotEmpty && result.dateOfBirth.trim().isNotEmpty &&
-          !_isSameDate(profile.dateOfBirth, result.dateOfBirth)) {
+          !isSameDate(profile.dateOfBirth, result.dateOfBirth)) {
         isMismatch = true;
         warningMsg = 'Mismatch detected! DOB does not match your 10th base document.';
       }

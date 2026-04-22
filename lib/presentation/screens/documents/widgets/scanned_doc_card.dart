@@ -10,7 +10,7 @@ class ScannedDocCard extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onDelete;
 
-  ScannedDocCard({
+  const ScannedDocCard({
     super.key,
     required this.name,
     required this.type,
@@ -67,12 +67,12 @@ class ScannedDocCard extends StatelessWidget {
               width: 52,
               height: 52,
               decoration: BoxDecoration(
-                color: context.colors.primary.withOpacity(0.12),
+                color: context.colors.primary.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Icon(icon, color: context.colors.primaryLight, size: 26),
             ),
-            SizedBox(width: 14),
+            const SizedBox(width: 14),
             // Content
             Expanded(
               child: Column(
@@ -91,7 +91,7 @@ class ScannedDocCard extends StatelessWidget {
                       fontFamily: 'Poppins',
                     ),
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Row(
                     children: [
                       // Type badge
@@ -112,7 +112,7 @@ class ScannedDocCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      SizedBox(width: 8),
+                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           date,
@@ -139,7 +139,7 @@ class ScannedDocCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Icon(_statusIcon, color: _getStatusColor(context), size: 20),
-                  SizedBox(height: 4),
+                   const SizedBox(height: 4),
                   Text(
                     status,
                     maxLines: 1,

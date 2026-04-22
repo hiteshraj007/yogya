@@ -7,7 +7,7 @@ class DonutCard extends StatefulWidget {
   final int totalCount;
   final VoidCallback? onTap;
 
-  DonutCard({
+  const DonutCard({
     super.key,
     required this.eligibleCount,
     required this.totalCount,
@@ -28,7 +28,7 @@ class _DonutCardState extends State<DonutCard>
     super.initState();
     _ctrl = AnimationController(
       vsync: this,
-      duration: Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 1200),
     );
     _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic);
     _ctrl.forward();
@@ -54,9 +54,9 @@ class _DonutCardState extends State<DonutCard>
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: context.colors.primary.withOpacity(0.3),
+              color: context.colors.primary.withValues(alpha: 0.3),
               blurRadius: 20,
-              offset: Offset(0, 8),
+               offset: const Offset(0, 8),
             ),
           ],
         ),
@@ -88,7 +88,7 @@ class _DonutCardState extends State<DonutCard>
                               value: (widget.totalCount - widget.eligibleCount) *
                                       _anim.value +
                                   (widget.totalCount * (1 - _anim.value)),
-                              color: Colors.white.withOpacity(0.2),
+                              color: Colors.white.withValues(alpha: 0.2),
                               radius: 14,
                               showTitle: false,
                             ),
@@ -109,7 +109,7 @@ class _DonutCardState extends State<DonutCard>
                 },
               ),
             ),
-            SizedBox(width: 20),
+             const SizedBox(width: 20),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -124,7 +124,7 @@ class _DonutCardState extends State<DonutCard>
                       fontFamily: 'Poppins',
                     ),
                   ),
-                  SizedBox(height: 6),
+                   const SizedBox(height: 6),
                   Text(
                     '${widget.eligibleCount} of ${widget.totalCount} Exams',
                     style: TextStyle(
@@ -134,7 +134,7 @@ class _DonutCardState extends State<DonutCard>
                       fontFamily: 'Poppins',
                     ),
                   ),
-                  SizedBox(height: 4),
+                   const SizedBox(height: 4),
                   Text(
                     'You are eligible for',
                     style: TextStyle(
@@ -143,11 +143,11 @@ class _DonutCardState extends State<DonutCard>
                       fontFamily: 'Poppins',
                     ),
                   ),
-                  SizedBox(height: 12),
+                   const SizedBox(height: 12),
                   Container(
                     padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
@@ -162,7 +162,7 @@ class _DonutCardState extends State<DonutCard>
                             fontFamily: 'Poppins',
                           ),
                         ),
-                        SizedBox(width: 4),
+                         const SizedBox(width: 4),
                         Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 14),
                       ],
                     ),

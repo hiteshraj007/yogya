@@ -10,7 +10,7 @@ class EligibilityPulseCard extends StatefulWidget {
   final int attemptsUsed;
   final int attemptsAllowed;
 
-  EligibilityPulseCard({
+  const EligibilityPulseCard({
     super.key,
     required this.examName,
     required this.examCode,
@@ -35,7 +35,7 @@ class _EligibilityPulseCardState extends State<EligibilityPulseCard>
     super.initState();
     _pulseCtrl = AnimationController(
       vsync: this,
-      duration: Duration(milliseconds: 1500),
+       duration: const Duration(milliseconds: 1500),
     );
     _pulse = Tween<double>(begin: 1.0, end: 1.3).animate(
       CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut),
@@ -68,7 +68,7 @@ class _EligibilityPulseCardState extends State<EligibilityPulseCard>
           color: context.colors.bgCard,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: statusColor.withOpacity(0.3),
+            color: statusColor.withValues(alpha: 0.3),
           ),
         ),
         child: Column(
@@ -84,12 +84,12 @@ class _EligibilityPulseCardState extends State<EligibilityPulseCard>
                       height: 44,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: statusColor.withOpacity(0.15),
+                        color: statusColor.withValues(alpha: 0.15),
                         boxShadow: widget.status == 'ELIGIBLE'
                             ? [
                                 BoxShadow(
                                   color: statusColor
-                                      .withOpacity(0.2 * _pulse.value),
+                                      .withValues(alpha: 0.2 * _pulse.value),
                                   blurRadius: 12 * _pulse.value,
                                 ),
                               ]
@@ -107,7 +107,7 @@ class _EligibilityPulseCardState extends State<EligibilityPulseCard>
                     );
                   },
                 ),
-                SizedBox(width: 14),
+                 const SizedBox(width: 14),
                 // Exam info
                 Expanded(
                   child: Column(
@@ -141,7 +141,7 @@ class _EligibilityPulseCardState extends State<EligibilityPulseCard>
                     margin: EdgeInsets.only(right: 8),
                     padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: context.colors.primary.withOpacity(0.1),
+                      color: context.colors.primary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -161,7 +161,7 @@ class _EligibilityPulseCardState extends State<EligibilityPulseCard>
                   padding: EdgeInsets.symmetric(
                       horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.12),
+                    color: statusColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
@@ -178,7 +178,7 @@ class _EligibilityPulseCardState extends State<EligibilityPulseCard>
                     ),
                   ),
                 ),
-                SizedBox(width: 8),
+                 const SizedBox(width: 8),
                 Icon(
                   _isExpanded
                       ? Icons.keyboard_arrow_up_rounded
@@ -190,7 +190,7 @@ class _EligibilityPulseCardState extends State<EligibilityPulseCard>
             ),
             // Expandable criteria
             AnimatedCrossFade(
-              firstChild: SizedBox.shrink(),
+               firstChild: const SizedBox.shrink(),
               secondChild: Padding(
                 padding: EdgeInsets.only(top: 16),
                 child: CriteriaBreakdown(criteria: widget.criteria),
@@ -198,7 +198,7 @@ class _EligibilityPulseCardState extends State<EligibilityPulseCard>
               crossFadeState: _isExpanded
                   ? CrossFadeState.showSecond
                   : CrossFadeState.showFirst,
-              duration: Duration(milliseconds: 300),
+               duration: const Duration(milliseconds: 300),
             ),
           ],
         ),

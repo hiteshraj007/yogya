@@ -5,7 +5,7 @@ class QuoteCard extends StatelessWidget {
   final String quote;
   final String author;
 
-  QuoteCard({
+  const QuoteCard({
     super.key,
     required this.quote,
     required this.author,
@@ -14,7 +14,7 @@ class QuoteCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.all(20),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: context.colors.bgCard,
         borderRadius: BorderRadius.circular(16),
@@ -26,7 +26,7 @@ class QuoteCard extends StatelessWidget {
           Row(
             children: [
               Icon(Icons.format_quote_rounded, color: context.colors.primaryLight, size: 20),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               Text(
                 'DAILY MOTIVATION',
                 style: TextStyle(
@@ -39,7 +39,7 @@ class QuoteCard extends StatelessWidget {
               ),
             ],
           ),
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
           Text(
             quote,
             style: TextStyle(
@@ -51,7 +51,7 @@ class QuoteCard extends StatelessWidget {
               fontFamily: 'Poppins',
             ),
           ),
-          SizedBox(height: 10),
+          const SizedBox(height: 10),
           Text(
             '— $author',
             style: TextStyle(
