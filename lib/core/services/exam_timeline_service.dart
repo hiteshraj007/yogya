@@ -69,6 +69,8 @@ class ExamTimelineService {
     for (final exam in ExamData.allExams) {
       if (prioritizedExamIds != null &&
           prioritizedExamIds.isNotEmpty &&
+          !prioritizedExamIds.contains('ALL_EXAMS') &&
+          !prioritizedExamIds.contains('NONE') &&
           !prioritizedExamIds.contains(exam.id)) {
         continue;
       }
@@ -105,6 +107,8 @@ class ExamTimelineService {
     for (final exam in ExamData.allExams) {
       if (prioritizedExamIds != null &&
           prioritizedExamIds.isNotEmpty &&
+          !prioritizedExamIds.contains('ALL_EXAMS') &&
+          !prioritizedExamIds.contains('NONE') &&
           !prioritizedExamIds.contains(exam.id)) {
         continue;
       }

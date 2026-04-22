@@ -3,9 +3,11 @@ import '../../../../core/theme/theme_colors.dart';
 import '../../../../data/local/hive_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../data/providers/auth_provider.dart';
+import '../../../../core/services/exam_timeline_service.dart';
+import '../../../providers/remote_data_provider.dart';
 
 class NotificationsSheet extends ConsumerWidget {
-  const NotificationsSheet({Key? key}) : super(key: key);
+  const NotificationsSheet({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -13,9 +15,35 @@ class NotificationsSheet extends ConsumerWidget {
     final docs = HiveService.getAllDocs(uid: uid);
     final verifiedCount = docs.where((d) => d.isVerified).length;
     final unverifiedCount = docs.length - verifiedCount;
-    final eligibleResults = HiveService.getAllEligibilityResults(uid: uid).where((e) => e.isEligible).length;
+    final eligibleResultsList = HiveService.getAllEligibilityResults(uid: uid).where((e) => e.isEligible);
+    final eligibleResults = eligibleResultsList.length;
+
+    // Get live data for upcoming
+    final eligibleExamIds = eligibleResultsList.map((r) => r.examId).toSet();
+    final examKey = examIdsToKey(eligibleExamIds.isEmpty ? {'ALL_EXAMS'} : eligibleExamIds);
+    final deadlinesAsync = ref.watch(deadlinesProvider(examKey));
+    final fallbackDeadlines = ExamTimelineService.instance.upcomingDeadlines(
+      prioritizedExamIds: eligibleExamIds.isEmpty ? {'ALL_EXAMS'} : eligibleExamIds,
+    );
+    final upcomingData = deadlinesAsync.value ?? fallbackDeadlines;
 
     List<Map<String, dynamic>> notifications = [];
+    final now = DateTime.now();
+
+    // 1. Live Deadline Notifications (show if deadline < 14 days)
+    for (var dateEvt in upcomingData) {
+      final days = (dateEvt['date'] as DateTime).difference(now).inDays;
+      if (days >= 0 && days <= 14) {
+        notifications.add({
+          'title': 'Upcoming Deadline',
+          'desc': '${dateEvt['examName']} ${dateEvt['event']} is closing in $days days!',
+          'icon': Icons.notifications_active_rounded,
+          'color': Colors.redAccent,
+          'time': '$days days left',
+        });
+      }
+    }
+
     if (verifiedCount > 0) {
       notifications.add({
         'title': 'Documents Verified',
@@ -110,7 +138,7 @@ class NotificationsSheet extends ConsumerWidget {
                       Container(
                         padding: EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: notif['color'].withOpacity(0.1),
+                          color: (notif['color'] as Color).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(notif['icon'], color: notif['color']),
