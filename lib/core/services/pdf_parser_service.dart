@@ -4,12 +4,13 @@ import 'package:dio/dio.dart';
 
 import 'ocr_service.dart';
 
-/// Configuration for the local PDF parser microservice.
+/// Configuration for the deployed PDF parser microservice.
 class PdfParserConfig {
-  static const String host = '127.0.0.1';
-  static const int port = 5050;
-  static String get baseUrl => 'http://$host:$port';
+  // Replace the link below with the exact URL from your Render dashboard 
+  // (check if it has any extra characters like '-iarw' at the end)
+  static String get baseUrl => 'https://yogya-pdf-parser-iarw.onrender.com';
 }
+
 
 /// Service that calls the local Python Flask PDF-parser microservice and
 /// maps the JSON response to [OcrResult].
