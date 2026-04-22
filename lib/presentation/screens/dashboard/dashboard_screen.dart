@@ -88,12 +88,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       eligibleExamIds.isEmpty ? {'ALL_EXAMS'} : eligibleExamIds,
     );
     final deadlinesAsync = ref.watch(deadlinesStreamProvider(examKey));
-    final fallbackDeadlines = ExamTimelineService.instance.upcomingDeadlines(
-      prioritizedExamIds: eligibleExamIds.isEmpty ? {'ALL_EXAMS'} : eligibleExamIds,
-    );
-    final dynamicDeadlines = (deadlinesAsync.value != null && deadlinesAsync.value!.isNotEmpty)
-        ? deadlinesAsync.value!
-        : fallbackDeadlines;
+    
+    // Fallback removed, direct assignment from stream
+    final dynamicDeadlines = deadlinesAsync.value ?? [];
+    
     final isLiveSyncing = deadlinesAsync.isLoading;
 
     int eligibleCount = 0;
@@ -325,6 +323,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     BuildContext context,
     List<Map<String, dynamic>> deadlines,
   ) {
+    if (deadlines.isEmpty) return SizedBox.shrink();
+      
     // Find the nearest upcoming deadline
     final now = DateTime.now();
     final upcoming = deadlines

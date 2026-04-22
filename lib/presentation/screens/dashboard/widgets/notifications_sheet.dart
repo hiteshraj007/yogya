@@ -21,13 +21,10 @@ class NotificationsSheet extends ConsumerWidget {
     // Get live data for upcoming
     final eligibleExamIds = eligibleResultsList.map((r) => r.examId).toSet();
     final examKey = examIdsToKey(eligibleExamIds.isEmpty ? {'ALL_EXAMS'} : eligibleExamIds);
-    final deadlinesAsync = ref.watch(deadlinesProvider(examKey));
-    final fallbackDeadlines = ExamTimelineService.instance.upcomingDeadlines(
-      prioritizedExamIds: eligibleExamIds.isEmpty ? {'ALL_EXAMS'} : eligibleExamIds,
-    );
-    final upcomingData = (deadlinesAsync.value != null && deadlinesAsync.value!.isNotEmpty)
-        ? deadlinesAsync.value!
-        : fallbackDeadlines;
+    final deadlinesAsync = ref.watch(deadlinesStreamProvider(examKey));
+    
+    // Removed Fallback, only Real-time Data
+    final upcomingData = deadlinesAsync.value ?? [];
 
     List<Map<String, dynamic>> notifications = [];
     final now = DateTime.now();

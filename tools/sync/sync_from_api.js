@@ -269,11 +269,36 @@ function parseYear(title = "") {
 }
 
 function inferDateFromTitle(title = "") {
-  // API me exact date nahi hai, fallback use kar rahe:
-  // 1) year मिले तो Jan 1 of that year
-  // 2) warna current date
+  // 1. Try to find a date like 20/05/2026 or 20-05-2026
+  const dateMatch = title.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+  if (dateMatch) {
+    try {
+      const d = new Date(Date.UTC(Number(dateMatch[3]), Number(dateMatch[2]) - 1, Number(dateMatch[1])));
+      if (!Number.isNaN(d.getTime())) {
+        return admin.firestore.Timestamp.fromDate(d);
+      }
+    } catch (_) {}
+  }
+
+  // 2. Fallback to parsing year and setting a reasonable future date if it's an "Apply" type
   const year = parseYear(title);
-  const d = year ? new Date(Date.UTC(year, 0, 1)) : new Date();
+  const t = safeLower(title);
+  const isApplication = t.includes("apply") || t.includes("application") || t.includes("last date");
+  
+  let d;
+  if (year) {
+    // If we have a year (e.g. 2026), and it's an application, assume it's late in that year 
+    // or just use current date if it's the current year but in the future.
+    if (year >= new Date().getFullYear()) {
+      d = new Date(Date.UTC(year, 11, 31)); // End of that year
+    } else {
+      d = new Date(Date.UTC(year, 0, 1));
+    }
+  } else {
+    // Default to a week from now for new "Apply" jobs so they show as upcoming
+    d = isApplication ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) : new Date();
+  }
+  
   return admin.firestore.Timestamp.fromDate(d);
 }
 
