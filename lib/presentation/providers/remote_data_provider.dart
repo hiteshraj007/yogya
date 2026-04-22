@@ -44,6 +44,7 @@ final allExamsProvider = FutureProvider<List<ExamInfo>>((ref) async {
   )).toList();
 });
 
+// ── One-shot fetch (legacy, kept for backward compatibility) ──
 final deadlinesProvider =
     FutureProvider.family<List<Map<String, dynamic>>, String>((ref, key) async {
   return FirestoreExamService.instance.fetchDeadlines(
@@ -54,6 +55,24 @@ final deadlinesProvider =
 final timelineEventsProvider =
     FutureProvider.family<List<Map<String, dynamic>>, String>((ref, key) async {
   return FirestoreExamService.instance.fetchTimelineEvents(
+    prioritizedExamIds: keyToExamIds(key),
+  );
+});
+
+// ── REAL-TIME STREAM PROVIDERS ────────────────────────────
+// These use Firestore snapshots — UI auto-refreshes when
+// Cloud Function pushes new data. No manual sync needed!
+
+final timelineStreamProvider =
+    StreamProvider.family<List<Map<String, dynamic>>, String>((ref, key) {
+  return FirestoreExamService.instance.watchTimelineEvents(
+    prioritizedExamIds: keyToExamIds(key),
+  );
+});
+
+final deadlinesStreamProvider =
+    StreamProvider.family<List<Map<String, dynamic>>, String>((ref, key) {
+  return FirestoreExamService.instance.watchDeadlines(
     prioritizedExamIds: keyToExamIds(key),
   );
 });

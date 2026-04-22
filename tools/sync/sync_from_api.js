@@ -197,9 +197,19 @@ dotenv.config();
  * RAPIDAPI_URL_JOBS=https://sarkari-result.p.rapidapi.com/latest-jobs/
  */
 
-const serviceAccount = JSON.parse(
-  fs.readFileSync(new URL("./serviceAccountKey.json", import.meta.url), "utf8")
-);
+let serviceAccount;
+try {
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+  } else {
+    serviceAccount = JSON.parse(
+      fs.readFileSync(new URL("./serviceAccountKey.json", import.meta.url), "utf8")
+    );
+  }
+} catch (e) {
+  console.error("❌ Failed to load Firebase credentials:", e.message);
+  process.exit(1);
+}
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),

@@ -72,10 +72,83 @@ class FirestoreExamService {
         'type': (m['type'] ?? 'notification').toString(),
         'date': ts is Timestamp ? ts.toDate() : DateTime.now(),
         'completed': m['completed'] == true,
+        'sourceUrl': (m['sourceUrl'] ?? '').toString(),
       };
     }).toList();
     
     results.sort((a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
     return results;
+  }
+
+  // ── REAL-TIME STREAMS ──────────────────────────────────
+  // These streams auto-update in the UI whenever Cloud Function
+  // pushes new data to Firestore — no manual sync needed!
+
+  Stream<List<Map<String, dynamic>>> watchTimelineEvents({
+    Set<String>? prioritizedExamIds,
+  }) {
+    Query<Map<String, dynamic>> query = _db.collection('timeline_events');
+
+    if (prioritizedExamIds != null) {
+      if (prioritizedExamIds.isEmpty) {
+        return Stream.value([]);
+      }
+      if (prioritizedExamIds.length <= 10) {
+        query = query.where('examId', whereIn: prioritizedExamIds.toList());
+      }
+    }
+
+    return query.snapshots().map((snap) {
+      final results = snap.docs.map((d) {
+        final m = d.data();
+        final ts = m['date'];
+        return {
+          'examId': (m['examId'] ?? '').toString(),
+          'examName': (m['examName'] ?? '').toString(),
+          'event': (m['event'] ?? '').toString(),
+          'type': (m['type'] ?? 'notification').toString(),
+          'date': ts is Timestamp ? ts.toDate() : DateTime.now(),
+          'completed': m['completed'] == true,
+          'sourceUrl': (m['sourceUrl'] ?? '').toString(),
+        };
+      }).toList();
+
+      results.sort(
+          (a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
+      return results;
+    });
+  }
+
+  Stream<List<Map<String, dynamic>>> watchDeadlines({
+    Set<String>? prioritizedExamIds,
+  }) {
+    Query<Map<String, dynamic>> query = _db.collection('exam_deadlines');
+
+    if (prioritizedExamIds != null) {
+      if (prioritizedExamIds.isEmpty) {
+        return Stream.value([]);
+      }
+      if (prioritizedExamIds.length <= 10) {
+        query = query.where('examId', whereIn: prioritizedExamIds.toList());
+      }
+    }
+
+    return query.snapshots().map((snap) {
+      final results = snap.docs.map((d) {
+        final m = d.data();
+        final ts = m['date'];
+        return {
+          'examId': (m['examId'] ?? '').toString(),
+          'examName': (m['examName'] ?? '').toString(),
+          'event': (m['event'] ?? '').toString(),
+          'date': ts is Timestamp ? ts.toDate() : DateTime.now(),
+          'urgency': (m['urgency'] ?? 'low').toString(),
+        };
+      }).toList();
+
+      results.sort(
+          (a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
+      return results;
+    });
   }
 }

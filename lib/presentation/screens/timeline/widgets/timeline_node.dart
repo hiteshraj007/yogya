@@ -267,8 +267,14 @@ class _TimelineNodeState extends ConsumerState<TimelineNode>
                             child: ElevatedButton.icon(
                               onPressed: () async {
                                 final url = Uri.parse(_examInfo!.registrationUrl);
-                                if (await canLaunchUrl(url)) {
+                                try {
                                   await launchUrl(url, mode: LaunchMode.externalApplication);
+                                } catch (_) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Could not open link')),
+                                    );
+                                  }
                                 }
                               },
                               icon: Icon(Icons.open_in_new_rounded, size: 16),

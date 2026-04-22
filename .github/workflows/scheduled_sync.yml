@@ -1,0 +1,42 @@
+name: Scheduled Exam Data Sync
+
+on:
+  schedule:
+    # Runs every 6 hours (00:00, 06:00, 12:00, 18:00 UTC)
+    - cron: '0 */6 * * *'
+  # Allows you to trigger this workflow manually from GitHub Actions tab
+  workflow_dispatch:
+
+jobs:
+  sync_data:
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: tools/sync
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'tools/sync/package-lock.json'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Firebase API Sync
+        run: node sync_from_api.js
+        env:
+          # Free tier rapidapi creds
+          RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
+          RAPIDAPI_HOST: "sarkari-result.p.rapidapi.com"
+          RAPIDAPI_URL_RESULTS: "https://sarkari-result.p.rapidapi.com/results/"
+          RAPIDAPI_URL_JOBS: "https://sarkari-result.p.rapidapi.com/jobs/"
+          
+          # Firebase connection injected from GitHub Secrets
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}

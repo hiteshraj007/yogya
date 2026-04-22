@@ -1,1 +1,30 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"yogya-app","appId":"1:858823327301:android:2777ac3c541c5035022d2c","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"yogya-app","configurations":{"android":"1:858823327301:android:2777ac3c541c5035022d2c","ios":"1:858823327301:ios:007a7f3ef97db4bc022d2c","macos":"1:858823327301:ios:007a7f3ef97db4bc022d2c","web":"1:858823327301:web:26b91f3e66164cb9022d2c","windows":"1:858823327301:web:431b8eb3a7706d6f022d2c"}}}}}}
+{
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs18",
+    "codebase": "yogya-sync"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "yogya-app",
+          "appId": "1:858823327301:android:2777ac3c541c5035022d2c",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "yogya-app",
+          "configurations": {
+            "android": "1:858823327301:android:2777ac3c541c5035022d2c",
+            "ios": "1:858823327301:ios:007a7f3ef97db4bc022d2c",
+            "macos": "1:858823327301:ios:007a7f3ef97db4bc022d2c",
+            "web": "1:858823327301:web:26b91f3e66164cb9022d2c",
+            "windows": "1:858823327301:web:431b8eb3a7706d6f022d2c"
+          }
+        }
+      }
+    }
+  }
+}
