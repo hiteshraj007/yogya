@@ -25,7 +25,9 @@ class NotificationsSheet extends ConsumerWidget {
     final fallbackDeadlines = ExamTimelineService.instance.upcomingDeadlines(
       prioritizedExamIds: eligibleExamIds.isEmpty ? {'ALL_EXAMS'} : eligibleExamIds,
     );
-    final upcomingData = deadlinesAsync.value ?? fallbackDeadlines;
+    final upcomingData = (deadlinesAsync.value != null && deadlinesAsync.value!.isNotEmpty)
+        ? deadlinesAsync.value!
+        : fallbackDeadlines;
 
     List<Map<String, dynamic>> notifications = [];
     final now = DateTime.now();

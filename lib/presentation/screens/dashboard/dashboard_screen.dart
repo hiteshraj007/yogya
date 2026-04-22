@@ -87,11 +87,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     final examKey = examIdsToKey(
       eligibleExamIds.isEmpty ? {'ALL_EXAMS'} : eligibleExamIds,
     );
-    final deadlinesAsync = ref.watch(deadlinesProvider(examKey));
+    final deadlinesAsync = ref.watch(deadlinesStreamProvider(examKey));
     final fallbackDeadlines = ExamTimelineService.instance.upcomingDeadlines(
-      prioritizedExamIds: eligibleExamIds.isEmpty ? {'NONE'} : eligibleExamIds,
+      prioritizedExamIds: eligibleExamIds.isEmpty ? {'ALL_EXAMS'} : eligibleExamIds,
     );
-    final dynamicDeadlines = deadlinesAsync.value ?? fallbackDeadlines;
+    final dynamicDeadlines = (deadlinesAsync.value != null && deadlinesAsync.value!.isNotEmpty)
+        ? deadlinesAsync.value!
+        : fallbackDeadlines;
     final isLiveSyncing = deadlinesAsync.isLoading;
 
     int eligibleCount = 0;

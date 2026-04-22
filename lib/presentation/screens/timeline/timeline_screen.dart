@@ -131,9 +131,11 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
     );
     final timelineAsync = ref.watch(timelineStreamProvider(examKey));
     final fallbackEvents = ExamTimelineService.instance.timelineEvents(
-      prioritizedExamIds: validExamIds.isEmpty ? {'NONE'} : validExamIds,
+      prioritizedExamIds: validExamIds.isEmpty ? {'ALL_EXAMS'} : validExamIds,
     );
-    final dynamicEvents = timelineAsync.value ?? fallbackEvents;
+    final dynamicEvents = (timelineAsync.value != null && timelineAsync.value!.isNotEmpty)
+        ? timelineAsync.value!
+        : fallbackEvents;
     final isTimelineSyncing = timelineAsync.isLoading;
     final events = _filteredEvents(dynamicEvents);
     final deadline = events
