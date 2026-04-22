@@ -12,7 +12,7 @@ class ApiService {
   static const FlutterSecureStorage _storage = FlutterSecureStorage();
 
   // Set this to false when real backend is available.
-  bool simulateRealtime = true;
+  bool simulateRealtime = false;
 
   final Dio _dio = Dio(
     BaseOptions(

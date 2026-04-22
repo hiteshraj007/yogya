@@ -493,9 +493,20 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const serviceAccount = JSON.parse(
-  fs.readFileSync(new URL("./serviceAccountKey.json", import.meta.url), "utf8")
-);
+// ── Firebase init — supports env-var credential or local key file ──────────
+let serviceAccount;
+try {
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+  } else {
+    serviceAccount = JSON.parse(
+      fs.readFileSync(new URL("./serviceAccountKey.json", import.meta.url), "utf8")
+    );
+  }
+} catch (e) {
+  console.error("❌ Failed to load Firebase credentials:", e.message);
+  process.exit(1);
+}
 
 if (!admin.apps.length) {
   admin.initializeApp({
@@ -506,6 +517,12 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 const serverNow = admin.firestore.FieldValue.serverTimestamp();
 
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+function safeLower(v) {
+  return (v || "").toString().toLowerCase();
+}
+
 function toTimestamp(value) {
   if (!value) return null;
   const d = new Date(value);
@@ -513,26 +530,42 @@ function toTimestamp(value) {
   return admin.firestore.Timestamp.fromDate(d);
 }
 
+function parseYear(title = "") {
+  const m = title.match(/\b(20\d{2})\b/);
+  if (m) return Number(m[1]);
+  return null;
+}
+
+function inferDateFromTitle(title = "") {
+  const year = parseYear(title);
+  const d = year ? new Date(Date.UTC(year, 0, 1)) : new Date();
+  return admin.firestore.Timestamp.fromDate(d);
+}
+
 function mapExamId(name = "") {
-  const n = name.toLowerCase();
+  const n = safeLower(name);
   if (n.includes("upsc")) return "upsc_cse";
   if (n.includes("ssc")) return "ssc_cgl";
   if (n.includes("ibps")) return "ibps_po";
-  if (n.includes("rrb")) return "rrb_ntpc";
+  if (n.includes("rrb") || n.includes("railway")) return "rrb_ntpc";
   if (n.includes("sbi")) return "sbi_po";
   if (n.includes("rbi")) return "rbi_grade_b";
+  if (n.includes("bank")) return "ibps_po";
+  if (n.includes("nda") || n.includes("cds") || n.includes("afcat")) return "nda";
   return "other_exam";
 }
 
 function mapType(event = "") {
-  const e = event.toLowerCase();
+  const e = safeLower(event);
+  if (e.includes("admit card")) return "admit_card";
+  if (e.includes("answer key")) return "answer_key";
   if (e.includes("notification")) return "notification";
-  if (e.includes("start") || e.includes("open")) return "application_start";
+  if (e.includes("start") || e.includes("open") || e.includes("apply") || e.includes("application")) return "application_start";
   if (e.includes("deadline") || e.includes("last date") || e.includes("end")) return "application_end";
   if (e.includes("prelims")) return "prelims";
   if (e.includes("mains")) return "mains";
   if (e.includes("interview")) return "interview";
-  if (e.includes("result")) return "result";
+  if (e.includes("result") || e.includes("score card") || e.includes("merit list")) return "result";
   if (e.includes("exam")) return "exam";
   return "other";
 }
@@ -544,97 +577,202 @@ function urgencyFromDate(ts) {
   return "low";
 }
 
-async function fetchApiRows() {
-  const { RAPIDAPI_KEY, RAPIDAPI_HOST, RAPIDAPI_URL } = process.env;
-  if (!RAPIDAPI_KEY || !RAPIDAPI_HOST || !RAPIDAPI_URL) {
-    throw new Error("Missing RAPIDAPI_KEY / RAPIDAPI_HOST / RAPIDAPI_URL");
-  }
+function makeDeterministicId(prefix, title, link) {
+  const raw = `${prefix}__${title}__${link}`.trim();
+  return Buffer.from(raw).toString("base64url").slice(0, 120);
+}
 
-  const res = await axios.get(RAPIDAPI_URL, {
+// ── API fetch ──────────────────────────────────────────────────────────────
+
+async function fetchEndpoint(url, apiKey, apiHost) {
+  const res = await axios.get(url, {
     headers: {
-      "x-rapidapi-key": RAPIDAPI_KEY,
-      "x-rapidapi-host": RAPIDAPI_HOST,
+      "x-rapidapi-key": apiKey,
+      "x-rapidapi-host": apiHost,
+      "Content-Type": "application/json",
     },
-    timeout: 20000,
+    timeout: 30000,
   });
 
-  return Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
-}
-
-function normalizeRows(rows) {
-  const timeline = [];
-  const deadlines = [];
-
-  for (const r of rows) {
-    const examName = (r.examName || r.title || r.exam || "").toString().trim();
-    const event = (r.event || r.stage || r.type || "").toString().trim();
-    const dateRaw = r.date || r.deadline || r.eventDate || r.lastDate || r.updatedAt;
-    const sourceUrl = (r.sourceUrl || r.url || "").toString();
-    const ts = toTimestamp(dateRaw);
-
-    if (!examName || !event || !ts) continue;
-
-    const examId = mapExamId(examName);
-    const type = mapType(event);
-
-    const baseDoc = {
-      examId,
-      examName,
-      event,
-      type,
-      date: ts,
-      sourceUrl,
-      updatedAt: serverNow,
-    };
-
-    timeline.push({
-      ...baseDoc,
-      completed: ts.toDate().getTime() < Date.now(),
-    });
-
-    if (type === "application_end" || event.toLowerCase().includes("deadline")) {
-      deadlines.push({
-        ...baseDoc,
-        urgency: urgencyFromDate(ts),
-      });
-    }
+  if (!res?.data?.success) {
+    throw new Error(`API returned non-success for ${url}`);
   }
 
-  return { timeline, deadlines };
+  return Array.isArray(res.data.data) ? res.data.data : [];
 }
 
-async function upsertCollection(collectionName, docs) {
+async function fetchApiRows() {
+  const { RAPIDAPI_KEY, RAPIDAPI_HOST, RAPIDAPI_URL_RESULTS, RAPIDAPI_URL_JOBS } = process.env;
+  if (!RAPIDAPI_KEY || !RAPIDAPI_HOST || !RAPIDAPI_URL_RESULTS || !RAPIDAPI_URL_JOBS) {
+    throw new Error(
+      "Missing required env vars: RAPIDAPI_KEY, RAPIDAPI_HOST, RAPIDAPI_URL_RESULTS, RAPIDAPI_URL_JOBS"
+    );
+  }
+
+  console.log("⏳ Fetching results endpoint...");
+  const resultsItems = await fetchEndpoint(RAPIDAPI_URL_RESULTS, RAPIDAPI_KEY, RAPIDAPI_HOST);
+
+  console.log("⏳ Fetching jobs endpoint...");
+  const jobsItems = await fetchEndpoint(RAPIDAPI_URL_JOBS, RAPIDAPI_KEY, RAPIDAPI_HOST);
+
+  return [
+    ...resultsItems.map((x) => ({ ...x, __sourceType: "results" })),
+    ...jobsItems.map((x) => ({ ...x, __sourceType: "latest_jobs" })),
+  ];
+}
+
+// ── Doc builders ───────────────────────────────────────────────────────────
+
+function toTimelineDoc(item) {
+  const sourceType = item.__sourceType || "unknown";
+  const title = (item.title || "").toString().trim();
+  const link = (item.link || "").toString().trim();
+
+  if (!title || !link) return null;
+
+  const type = mapType(title);
+  const examId = mapExamId(title);
+  const eventDate = inferDateFromTitle(title);
+
+  return {
+    examId,
+    examName: title,
+    event: title,
+    type,
+    date: eventDate,
+    completed: type === "result" || eventDate.toDate().getTime() < Date.now(),
+    source: `rapidapi_${sourceType}`,
+    sourceUrl: link,
+    updatedAt: serverNow,
+    createdAt: serverNow,
+  };
+}
+
+function toDeadlineDoc(item) {
+  const sourceType = item.__sourceType || "unknown";
+  const title = (item.title || "").toString().trim();
+  const link = (item.link || "").toString().trim();
+  if (!title || !link) return null;
+
+  const t = safeLower(title);
+  const looksDeadline =
+    t.includes("last date") ||
+    t.includes("deadline") ||
+    t.includes("apply") ||
+    t.includes("application");
+
+  if (!looksDeadline) return null;
+
+  const date = inferDateFromTitle(title);
+  const examId = mapExamId(title);
+
+  return {
+    examId,
+    examName: title,
+    event: "Application Deadline",
+    date,
+    urgency: urgencyFromDate(date),
+    source: `rapidapi_${sourceType}`,
+    sourceUrl: link,
+    updatedAt: serverNow,
+    createdAt: serverNow,
+  };
+}
+
+// ── Batch upsert ───────────────────────────────────────────────────────────
+
+async function upsertDocs(collectionName, docs, prefix) {
   const chunkSize = 400;
   for (let i = 0; i < docs.length; i += chunkSize) {
     const chunk = docs.slice(i, i + chunkSize);
     const batch = db.batch();
 
     for (const doc of chunk) {
-      const id = `${doc.examId}_${doc.type}_${doc.date.toMillis()}`;
+      const id = makeDeterministicId(prefix, doc.event || doc.examName, doc.sourceUrl || "");
       const ref = db.collection(collectionName).doc(id);
-      batch.set(ref, { ...doc, createdAt: serverNow }, { merge: true });
+      batch.set(ref, doc, { merge: true });
     }
 
     await batch.commit();
   }
 }
 
+// ── Main sync ──────────────────────────────────────────────────────────────
+
 async function runSync() {
-  console.log("Sync started...");
-  const rows = await fetchApiRows();
-  const { timeline, deadlines } = normalizeRows(rows);
+  console.log("🚀 Sync started...");
 
-  console.log(`Fetched rows: ${rows.length}`);
-  console.log(`Timeline docs: ${timeline.length}`);
-  console.log(`Deadline docs: ${deadlines.length}`);
+  try {
+    const rawAll = await fetchApiRows();
+    console.log(`📦 Total raw items fetched: ${rawAll.length}`);
 
-  if (timeline.length > 0) await upsertCollection("timeline_events", timeline);
-  if (deadlines.length > 0) await upsertCollection("exam_deadlines", deadlines);
+    const timelineDocs = [];
+    const deadlineDocs = [];
 
-  console.log("Sync completed.");
+    for (const item of rawAll) {
+      const tDoc = toTimelineDoc(item);
+      if (tDoc) timelineDocs.push(tDoc);
+
+      const dDoc = toDeadlineDoc(item);
+      if (dDoc) deadlineDocs.push(dDoc);
+    }
+
+    // In-memory dedupe by sourceUrl + event
+    const timelineMap = new Map();
+    for (const d of timelineDocs) {
+      timelineMap.set(`${d.sourceUrl}__${d.event}`, d);
+    }
+    const deadlineMap = new Map();
+    for (const d of deadlineDocs) {
+      deadlineMap.set(`${d.sourceUrl}__${d.event}`, d);
+    }
+
+    const finalTimeline = [...timelineMap.values()];
+    const finalDeadlines = [...deadlineMap.values()];
+
+    console.log(`🧾 Timeline docs: ${finalTimeline.length}`);
+    console.log(`⏰ Deadline docs: ${finalDeadlines.length}`);
+
+    if (finalTimeline.length > 0) await upsertDocs("timeline_events", finalTimeline, "timeline");
+    if (finalDeadlines.length > 0) await upsertDocs("exam_deadlines", finalDeadlines, "deadline");
+
+    await db.collection("sync_meta").doc("meta").set(
+      {
+        lastSyncAt: serverNow,
+        lastSyncStatus: "success",
+        error: "",
+        provider: "rapidapi_sarkari_result",
+        syncType: "manual_script",
+        counts: {
+          raw: rawAll.length,
+          timeline: finalTimeline.length,
+          deadlines: finalDeadlines.length,
+        },
+      },
+      { merge: true }
+    );
+
+    console.log("✅ Sync completed successfully.");
+  } catch (err) {
+    console.error("❌ Sync failed:", err.message);
+
+    try {
+      await db.collection("sync_meta").doc("meta").set(
+        {
+          lastSyncAt: serverNow,
+          lastSyncStatus: "failed",
+          error: err.message || "unknown error",
+          provider: "rapidapi_sarkari_result",
+          syncType: "manual_script",
+        },
+        { merge: true }
+      );
+    } catch (syncMetaErr) {
+      console.error("❌ Failed to write error status to sync_meta:", syncMetaErr.message);
+    }
+
+    process.exit(1);
+  }
 }
 
-runSync().catch((err) => {
-  console.error("Sync failed:", err);
-  process.exit(1);
-});
+runSync();

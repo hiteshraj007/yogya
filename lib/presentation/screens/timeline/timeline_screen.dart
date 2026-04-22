@@ -228,7 +228,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                           ),
                           const SizedBox(width: 10),
                           Text(
-                            'Syncing timeline from live simulation...',
+                            'Syncing latest timeline from Firestore...',
                             style: TextStyle(
                               color: context.colors.textSecondary,
                               fontSize: 12,

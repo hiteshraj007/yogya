@@ -47,4 +47,5 @@ app.*.map.json
 
 tools/seed/serviceAccountKey.json
 tools/sync/serviceAccountKey.json
+tools/sync/.env
 node_modules
