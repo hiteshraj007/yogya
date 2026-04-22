@@ -466,7 +466,7 @@ run().catch(async (err) => {
       },
       { merge: true }
     );
-  } catch (_) {}
+  } catch (_) { }
 
   process.exit(1);
 });
