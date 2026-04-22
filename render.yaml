@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: yogya-pdf-parser
+    env: docker
+    region: singapore # Closest to India for fast responses
+    plan: free # Can upgrade later if needed
+    dockerContext: tools/pdf_parser
+    dockerfilePath: tools/pdf_parser/Dockerfile
+    envVars:
+      - key: PORT
+        value: 5050

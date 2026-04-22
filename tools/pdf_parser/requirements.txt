@@ -4,3 +4,4 @@ pdfplumber>=0.11.0
 pillow>=10.0.0
 pytesseract>=0.3.10
 pdf2image>=1.17.0
+gunicorn>=21.2.0

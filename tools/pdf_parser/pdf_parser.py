@@ -476,12 +476,14 @@ def _extract_total_marks(text: str) -> str:
 # ─── Entrypoint ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
+    import os
+    port = int(os.environ.get("PORT", 5050))
     print("=" * 55)
     print("  Yogya PDF Parser Microservice")
-    print("  Listening on http://127.0.0.1:5050")
+    print(f"  Listening on http://0.0.0.0:{port}")
     print("  Endpoints:")
     print("    GET  /health")
     print("    POST /parse-pdf   (multipart file)")
     print("    POST /parse-image (multipart file)")
     print("=" * 55)
-    app.run(host="127.0.0.1", port=5050, debug=False)
+    app.run(host="0.0.0.0", port=port, debug=False)
