@@ -1,10 +1,9 @@
-FROM python:3.10-slim
+FROM python:3.10-slim-bookworm
 
 # Install system dependencies (Tesseract OCR and Poppler for PDF-to-image)
-RUN apt-get update && apt-get install -y \
+RUN apt-get update -qq && apt-get install -y --no-install-recommends \
     tesseract-ocr \
     poppler-utils \
-    libgl1-mesa-glx \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
