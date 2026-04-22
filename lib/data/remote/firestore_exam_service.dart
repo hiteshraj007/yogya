@@ -6,21 +6,32 @@ class FirestoreExamService {
 
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
+  Future<List<Map<String, dynamic>>> fetchExams() async {
+    try {
+      final snap = await _db.collection('exams').get();
+      if (snap.docs.isEmpty) return [];
+      return snap.docs.map((d) => d.data()).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
   Future<List<Map<String, dynamic>>> fetchDeadlines({
     Set<String>? prioritizedExamIds,
   }) async {
     Query<Map<String, dynamic>> query =
-        _db.collection('exam_deadlines').orderBy('date');
+        _db.collection('exam_deadlines');
 
-    if (prioritizedExamIds != null &&
-        prioritizedExamIds.isNotEmpty &&
-        prioritizedExamIds.length <= 10) {
-      query = query.where('examId', whereIn: prioritizedExamIds.toList());
+    if (prioritizedExamIds != null) {
+      if (prioritizedExamIds.isEmpty) return [];
+      if (prioritizedExamIds.length <= 10) {
+        query = query.where('examId', whereIn: prioritizedExamIds.toList());
+      }
     }
 
     final snap = await query.get();
 
-    return snap.docs.map((d) {
+    final results = snap.docs.map((d) {
       final m = d.data();
       final ts = m['date'];
       return {
@@ -31,23 +42,27 @@ class FirestoreExamService {
         'urgency': (m['urgency'] ?? 'low').toString(),
       };
     }).toList();
+    
+    results.sort((a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
+    return results;
   }
 
   Future<List<Map<String, dynamic>>> fetchTimelineEvents({
     Set<String>? prioritizedExamIds,
   }) async {
     Query<Map<String, dynamic>> query =
-        _db.collection('timeline_events').orderBy('date');
+        _db.collection('timeline_events');
 
-    if (prioritizedExamIds != null &&
-        prioritizedExamIds.isNotEmpty &&
-        prioritizedExamIds.length <= 10) {
-      query = query.where('examId', whereIn: prioritizedExamIds.toList());
+    if (prioritizedExamIds != null) {
+      if (prioritizedExamIds.isEmpty) return [];
+      if (prioritizedExamIds.length <= 10) {
+        query = query.where('examId', whereIn: prioritizedExamIds.toList());
+      }
     }
 
     final snap = await query.get();
 
-    return snap.docs.map((d) {
+    final results = snap.docs.map((d) {
       final m = d.data();
       final ts = m['date'];
       return {
@@ -59,5 +74,8 @@ class FirestoreExamService {
         'completed': m['completed'] == true,
       };
     }).toList();
+    
+    results.sort((a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
+    return results;
   }
 }

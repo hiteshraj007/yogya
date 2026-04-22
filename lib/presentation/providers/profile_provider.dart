@@ -196,10 +196,12 @@
 //     await ref.read(profileNotifierProvider.notifier).loadProfile(user.uid);
 //   }
 // });
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/local/hive_service.dart';
 import '../../data/models/user_profile_model.dart';
 import '../../data/providers/auth_provider.dart';
+import '../../data/remote/firestore_sync_service.dart';
 
 class ProfileState {
   final UserProfileModel? profile;
@@ -220,9 +222,10 @@ class ProfileState {
     bool? isSaved,
     String? errorMessage,
     bool clearError = false,
+    bool clearProfile = false,
   }) {
     return ProfileState(
-      profile: profile ?? this.profile,
+      profile: clearProfile ? null : (profile ?? this.profile),
       isLoading: isLoading ?? this.isLoading,
       isSaved: isSaved ?? this.isSaved,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
@@ -235,8 +238,20 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
 
   Future<void> loadProfile(String uid) async {
     state = state.copyWith(isLoading: true);
+    
+    // Sync down from remote
+    await FirestoreSyncService.syncDownFromCloud(uid);
+
     final profile = HiveService.getUserProfile(uid);
-    state = state.copyWith(isLoading: false, profile: profile);
+    state = state.copyWith(
+      isLoading: false, 
+      profile: profile, 
+      clearProfile: profile == null,
+    );
+  }
+
+  void clearProfile() {
+    state = const ProfileState();
   }
 
   Future<void> saveProfile({
@@ -290,49 +305,137 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
     required String uid,
     required String docType,
     required String dateOfBirth,
-    required String university,
+    required String university,  // raw school/institution name
     required String percentage,
     required String passingYear,
     required String extractedName,
     required String primaryExamGoal,
+    String board = '',            // clean board name (e.g. "CBSE")
     String? courseName,
     String? graduationStatus,
     bool isVerified = false,
     double confidenceLevel = 0.0,
   }) async {
     final existing = HiveService.getUserProfile(uid) ?? state.profile;
-    
-    String tBoard = existing?.tenthBoard ?? ''; String tYear = existing?.tenthYear ?? ''; String tPercent = existing?.tenthPercentage ?? '';
-    String twBoard = existing?.twelfthBoard ?? ''; String twYear = existing?.twelfthYear ?? ''; String twPercent = existing?.twelfthPercentage ?? '';
-    String gCourse = existing?.gradCourse ?? ''; String gUni = existing?.gradUniversity ?? ''; String gYear = existing?.gradYear ?? ''; String gPercent = existing?.gradPercentage ?? ''; String gStatus = existing?.graduationStatus ?? '';
+
+    String tBoard  = existing?.tenthBoard     ?? '';
+    String tYear   = existing?.tenthYear      ?? '';
+    String tPercent = existing?.tenthPercentage ?? '';
+    String twBoard = existing?.twelfthBoard    ?? '';
+    String twYear  = existing?.twelfthYear     ?? '';
+    String twPercent = existing?.twelfthPercentage ?? '';
+    String gCourse = existing?.gradCourse     ?? '';
+    String gUni    = existing?.gradUniversity  ?? '';
+    String gYear   = existing?.gradYear       ?? '';
+    String gPercent = existing?.gradPercentage ?? '';
+    String gStatus = existing?.graduationStatus ?? '';
 
     String newName = existing?.name ?? '';
-    String newDob = existing?.dateOfBirth ?? '';
+    String newDob  = existing?.dateOfBirth ?? '';
 
-    if (docType.contains('10')) {
-      tBoard = university; tYear = passingYear; tPercent = percentage;
+    // Use the clean board name; fall back to raw university text
+    final effectiveBoard = board.isNotEmpty ? board : university;
+
+    final dt = docType.toLowerCase();
+    if (dt.contains('10')) {
+      tBoard  = effectiveBoard;
+      tYear   = passingYear;
+      tPercent = percentage;
+      // 10th marksheet is the ground truth for name & DOB
       if (extractedName.isNotEmpty) newName = extractedName;
-      if (dateOfBirth.isNotEmpty) newDob = dateOfBirth;
-    } else if (docType.contains('12')) {
-      twBoard = university; twYear = passingYear; twPercent = percentage;
-    } else if (docType.toLowerCase().contains('grad')) {
-      gCourse = courseName ?? university; gUni = university; gYear = passingYear; gPercent = percentage;
-      gStatus = (graduationStatus != null && graduationStatus.isNotEmpty) ? graduationStatus : ((int.tryParse(passingYear) ?? 9999) > DateTime.now().year ? 'Pursuing' : 'Completed');
+      if (dateOfBirth.isNotEmpty)  newDob  = dateOfBirth;
+    } else if (dt.contains('12')) {
+      twBoard  = effectiveBoard;
+      twYear   = passingYear;
+      twPercent = percentage;
+      // Fill DOB only if not already set
+      if (newDob.isEmpty && dateOfBirth.isNotEmpty) newDob = dateOfBirth;
+    } else if (dt.contains('pg') || dt.contains('post')) {
+      // PG — store in grad fields (could be extended later)
+      gCourse = courseName ?? university;
+      gUni    = university;
+      gYear   = passingYear;
+      gPercent = percentage;
+      gStatus  = 'Completed';
+    } else if (dt.contains('grad') || dt.contains('ug') || dt.contains('bachelor')) {
+      gCourse = courseName ?? university;
+      gUni    = university;
+      gYear   = passingYear;
+      gPercent = percentage;
+      gStatus  = (graduationStatus != null && graduationStatus.isNotEmpty)
+          ? graduationStatus
+          : ((int.tryParse(passingYear) ?? 9999) > DateTime.now().year ? 'Pursuing' : 'Completed');
     }
 
     await saveProfile(
-      uid: uid, name: newName, email: existing?.email ?? '', category: existing?.category ?? 'General', gender: existing?.gender ?? 'Male', dateOfBirth: newDob, phone: existing?.phone ?? '', stateOfDomicile: existing?.stateOfDomicile ?? '', primaryExamGoal: primaryExamGoal.trim().isNotEmpty ? primaryExamGoal : (existing?.primaryExamGoal ?? ''),
-      tenthBoard: tBoard, tenthYear: tYear, tenthPercentage: tPercent,
-      twelfthBoard: twBoard, twelfthYear: twYear, twelfthPercentage: twPercent,
-      gradCourse: gCourse, gradUniversity: gUni, gradYear: gYear, gradPercentage: gPercent, graduationStatus: gStatus,
+      uid: uid,
+      name: newName,
+      email: existing?.email.isNotEmpty == true ? existing!.email : (FirebaseAuth.instance.currentUser?.email ?? ''),
+      category: existing?.category ?? 'General',
+      gender: existing?.gender ?? 'Male',
+      dateOfBirth: newDob,
+      phone: existing?.phone ?? '',
+      stateOfDomicile: existing?.stateOfDomicile.isNotEmpty == true 
+          ? existing!.stateOfDomicile 
+          : _guessStateFromBoard(twBoard.isNotEmpty ? twBoard : tBoard, university),
+      primaryExamGoal: primaryExamGoal.trim().isNotEmpty
+          ? primaryExamGoal
+          : (existing?.primaryExamGoal ?? ''),
+      tenthBoard:      tBoard,
+      tenthYear:       tYear,
+      tenthPercentage: tPercent,
+      twelfthBoard:    twBoard,
+      twelfthYear:     twYear,
+      twelfthPercentage: twPercent,
+      gradCourse:      gCourse,
+      gradUniversity:  gUni,
+      gradYear:        gYear,
+      gradPercentage:  gPercent,
+      graduationStatus: gStatus,
     );
+  }
+
+  String _guessStateFromBoard(String board, [String school = '']) {
+    if (board.isEmpty && school.isEmpty) return '';
+    final lower = '$board $school'.toLowerCase();
+    final states = [
+      'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
+      'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka',
+      'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram',
+      'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu',
+      'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
+      'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Puducherry', 'Chandigarh'
+    ];
+    for (final st in states) {
+      if (lower.contains(st.toLowerCase())) return st;
+    }
+    if (lower.contains('up board') || lower.contains('upmsp')) return 'Uttar Pradesh';
+    if (lower.contains('bseb')) return 'Bihar';
+    if (lower.contains('rbse')) return 'Rajasthan';
+    if (lower.contains('gseb')) return 'Gujarat';
+    if (lower.contains('msbshse')) return 'Maharashtra';
+    if (lower.contains('kseeb')) return 'Karnataka';
+    if (lower.contains('wbbse') || lower.contains('wbchse')) return 'West Bengal';
+    if (lower.contains('bseap') || lower.contains('bieap')) return 'Andhra Pradesh';
+    return '';
   }
 
   void resetSaved() => state = state.copyWith(isSaved: false);
 }
 
-final profileNotifierProvider = StateNotifierProvider<ProfileNotifier, ProfileState>((ref) => ProfileNotifier());
-final profileLoaderProvider = FutureProvider<void>((ref) async {
-  final user = ref.watch(currentUserProvider);
-  if (user != null) await ref.read(profileNotifierProvider.notifier).loadProfile(user.uid);
+final profileNotifierProvider = StateNotifierProvider<ProfileNotifier, ProfileState>((ref) {
+  final notifier = ProfileNotifier();
+  
+  ref.listen<User?>(currentUserProvider, (previous, next) {
+    if (next != null) {
+      Future.microtask(() => notifier.loadProfile(next.uid));
+    } else {
+      Future.microtask(() => notifier.clearProfile());
+    }
+  }, fireImmediately: true);
+  
+  return notifier;
 });
+
+// Deprecated: No longer modifies state, just a placeholder to not break main.dart
+final profileLoaderProvider = Provider<void>((ref) {});

@@ -2,19 +2,20 @@ import '../../../core/theme/theme_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import '../../../core/constants/colors.dart';
 import '../../../core/constants/exam_data.dart';
 import '../../../core/constants/app_animations.dart';
 import '../../../core/services/exam_timeline_service.dart';
 import '../../../core/services/eligibility_service.dart';
 import '../../../data/local/hive_service.dart';
+import '../../providers/eligibility_provider.dart';
 import '../../providers/profile_provider.dart';
 import '../../providers/remote_data_provider.dart';
+import '../../../data/providers/auth_provider.dart';
 import 'widgets/deadline_banner.dart';
 import 'widgets/timeline_node.dart';
 
 class TimelineScreen extends ConsumerStatefulWidget {
-  TimelineScreen({super.key});
+  const TimelineScreen({super.key});
 
   @override
   ConsumerState<TimelineScreen> createState() => _TimelineScreenState();
@@ -23,32 +24,37 @@ class TimelineScreen extends ConsumerStatefulWidget {
 class _TimelineScreenState extends ConsumerState<TimelineScreen>
     with SingleTickerProviderStateMixin {
   String _selectedCategory = 'All';
+  bool _hidePastEvents = false;
+  bool _onlyShowDeadlines = false;
   late AnimationController _ctrl;
   late List<Animation<double>> _fadeAnims;
   late List<Animation<Offset>> _slideAnims;
 
   List<Map<String, dynamic>> _filteredEvents(List<Map<String, dynamic>> events) {
-    if (_selectedCategory == 'All') return events;
-    return events.where((e) {
-      final examName = e['examName'] as String;
-      // Match category to exam name
-      switch (_selectedCategory) {
-        case 'UPSC':
-          return examName.contains('UPSC');
-        case 'SSC':
-          return examName.contains('SSC');
-        case 'Banking':
-          return examName.contains('IBPS') ||
-              examName.contains('SBI') ||
-              examName.contains('RBI');
-        case 'Defence':
-          return examName.contains('NDA') || examName.contains('CDS');
-        case 'Railways':
-          return examName.contains('RRB');
-        default:
-          return true;
-      }
-    }).toList();
+    var filtered = events;
+    if (_selectedCategory != 'All') {
+      filtered = filtered.where((e) {
+        final examName = e['examName'] as String;
+        switch (_selectedCategory) {
+          case 'UPSC': return examName.contains('UPSC');
+          case 'SSC': return examName.contains('SSC');
+          case 'Banking': return examName.contains('IBPS') || examName.contains('SBI') || examName.contains('RBI');
+          case 'Defence': return examName.contains('NDA') || examName.contains('CDS');
+          case 'Railways': return examName.contains('RRB');
+          default: return true;
+        }
+      }).toList();
+    }
+    
+    if (_hidePastEvents) {
+      filtered = filtered.where((e) => (e['date'] as DateTime).isAfter(DateTime.now().subtract(Duration(days: 1)))).toList();
+    }
+    
+    if (_onlyShowDeadlines) {
+      filtered = filtered.where((e) => (e['event'] as String).toLowerCase().contains('deadline')).toList();
+    }
+    
+    return filtered;
   }
 
   @override
@@ -101,30 +107,31 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
     );
   }
 
-  // Find the nearest upcoming deadline for the banner
-  Map<String, dynamic>? get _nearestDeadline {
-    final now = DateTime.now();
-    final upcoming = ExamData.upcomingDeadlines
-        .where((d) => (d['date'] as DateTime).isAfter(now))
-        .toList()
-      ..sort(
-          (a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
-    return upcoming.isNotEmpty ? upcoming.first : null;
-  }
+  // (nearest deadline now computed inline in build)
 
   @override
   Widget build(BuildContext context) {
     final profile = ref.watch(profileNotifierProvider).profile;
-    final eligibleExamIds = HiveService.getAllEligibilityResults()
-        .where((r) => r.isEligible)
-        .map((r) => r.examId)
-        .toSet();
+    final providerEvals = ref.watch(eligibilityProvider).evaluations;
+    Set<String> validExamIds;
+    
+    if (providerEvals.isNotEmpty) {
+      validExamIds = providerEvals
+          .where((e) => e.status == 'ELIGIBLE' || e.status == 'UPCOMING')
+          .map((e) => e.exam.id)
+          .toSet();
+    } else {
+      validExamIds = HiveService.getAllEligibilityResults()
+          .where((r) => r.isEligible || r.matchPercent >= 60)
+          .map((r) => r.examId)
+          .toSet();
+    }
     final examKey = examIdsToKey(
-      eligibleExamIds.isEmpty ? null : eligibleExamIds,
+      validExamIds.isEmpty ? {'NONE'} : validExamIds,
     );
     final timelineAsync = ref.watch(timelineEventsProvider(examKey));
     final fallbackEvents = ExamTimelineService.instance.timelineEvents(
-      prioritizedExamIds: eligibleExamIds.isEmpty ? null : eligibleExamIds,
+      prioritizedExamIds: validExamIds.isEmpty ? {'NONE'} : validExamIds,
     );
     final dynamicEvents = timelineAsync.value ?? fallbackEvents;
     final isTimelineSyncing = timelineAsync.isLoading;
@@ -142,9 +149,10 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
         ? const <FutureEligibilityProjection>[]
         : EligibilityService.instance.projectFutureEligibility(
             profile: profile,
-            docs: HiveService.getAllDocs(),
+            docs: HiveService.getAllDocs(uid: ref.read(currentUserProvider)?.uid),
             attemptsByExam: _attemptCountsByExam(),
-            examIds: eligibleExamIds.isEmpty ? null : eligibleExamIds,
+            examIds: validExamIds.isEmpty ? null : validExamIds,
+            allExams: ref.watch(allExamsProvider).value ?? ExamData.allExams,
             yearsAhead: 2,
           );
 
@@ -167,22 +175,23 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
             icon: Container(
               padding: EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: context.colors.glassWhite,
+                color: (_hidePastEvents || _onlyShowDeadlines) ? context.colors.primary : context.colors.glassWhite,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: context.colors.glassBorder),
               ),
               child: Icon(Icons.filter_list_rounded,
-                  color: context.colors.textPrimary, size: 20),
+                  color: (_hidePastEvents || _onlyShowDeadlines) ? Colors.white : context.colors.textPrimary, size: 20),
             ),
-            onPressed: () {},
+            onPressed: _showAdvancedFiltersDialog,
           ),
           SizedBox(width: 8),
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
+        onPressed: _showLogAttemptDialog,
         backgroundColor: context.colors.primary,
         child: Icon(Icons.add_rounded, color: Colors.white),
+        tooltip: 'Log Exam Attempt',
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -318,7 +327,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                         children: [
                           Icon(Icons.event_busy_rounded,
                               size: 60,
-                              color: context.colors.textHint.withOpacity(0.5)),
+                              color: context.colors.textHint.withValues(alpha: 0.5)),
                           SizedBox(height: 16),
                           Text(
                             'No events in this category',
@@ -409,7 +418,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
                         Container(
                           padding: EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: context.colors.primary.withOpacity(0.1),
+                            color: context.colors.primary.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Row(
@@ -658,7 +667,8 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
   String? _resolveExamId(String examName) {
     final lower = examName.toLowerCase().trim();
     if (lower.isEmpty) return null;
-    for (final exam in ExamData.allExams) {
+    final examsList = ref.read(allExamsProvider).value ?? ExamData.allExams;
+    for (final exam in examsList) {
       if (lower.contains(exam.code.toLowerCase()) ||
           lower.contains(exam.name.toLowerCase())) {
         return exam.id;
@@ -672,5 +682,121 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen>
       return 'Complete profile details and run eligibility check for tailored guidance.';
     }
     return 'Focus on $goal preparation and keep documents updated for faster application flow.';
+  }
+
+  void _showAdvancedFiltersDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: context.colors.bgCard,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Text('Advanced Filters', style: TextStyle(color: context.colors.textPrimary)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SwitchListTile(
+                    title: Text('Hide Past Events', style: TextStyle(color: context.colors.textPrimary)),
+                    value: _hidePastEvents,
+                    activeColor: context.colors.primary,
+                    onChanged: (val) {
+                      setDialogState(() => _hidePastEvents = val);
+                      setState(() => _hidePastEvents = val);
+                    },
+                  ),
+                  SwitchListTile(
+                    title: Text('Only Show Deadlines', style: TextStyle(color: context.colors.textPrimary)),
+                    value: _onlyShowDeadlines,
+                    activeColor: context.colors.primary,
+                    onChanged: (val) {
+                      setDialogState(() => _onlyShowDeadlines = val);
+                      setState(() => _onlyShowDeadlines = val);
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text('Close', style: TextStyle(color: context.colors.primary)),
+                ),
+              ],
+            );
+          }
+        );
+      },
+    );
+  }
+
+  void _showLogAttemptDialog() {
+    final examsList = ref.read(allExamsProvider).value ?? ExamData.allExams;
+    String selectedExam = examsList.first.id;
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: context.colors.bgCard,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Text('Log Exam Attempt', style: TextStyle(color: context.colors.textPrimary)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Select the exam you have recently attempted. This will update your eligibility tracking.',
+                    style: TextStyle(color: context.colors.textSecondary, fontSize: 14),
+                  ),
+                  SizedBox(height: 20),
+                  DropdownButtonFormField<String>(
+                    value: selectedExam,
+                    dropdownColor: context.colors.bgDark,
+                    style: TextStyle(color: context.colors.textPrimary),
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: context.colors.bgDark,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    ),
+                    items: examsList.map((e) => DropdownMenuItem(value: e.id, child: Text(e.name))).toList(),
+                    onChanged: (val) {
+                      if (val != null) setDialogState(() => selectedExam = val);
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text('Cancel', style: TextStyle(color: context.colors.textSecondary)),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    final box = await Hive.openBox('attemptHistory');
+                    await box.add({
+                      'exam': examsList.firstWhere((e) => e.id == selectedExam).code,
+                      'date': DateTime.now().toIso8601String(),
+                    });
+                    final profile = ref.read(profileNotifierProvider).profile;
+                    ref.read(eligibilityProvider.notifier).computeAll(profile, examsList);
+                    setState(() {});
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text('Attempt logged successfully!', style: TextStyle(color: Colors.white)),
+                        backgroundColor: context.colors.eligible,
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: context.colors.primary),
+                  child: Text('Save Attempt', style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            );
+          }
+        );
+      },
+    );
   }
 }

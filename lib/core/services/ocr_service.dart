@@ -669,6 +669,7 @@ class OcrResult {
   final String fatherName;
   final String motherName;
   final Map<String, String> subjectMarks;
+  final String subjectsJson; // structured JSON from PDF parser
   final double confidence;
   final String? imagePath;
   final String? errorMessage;
@@ -692,6 +693,7 @@ class OcrResult {
     this.fatherName = '',
     this.motherName = '',
     this.subjectMarks = const {},
+    this.subjectsJson = '',
     this.confidence = 0.0,
     this.imagePath,
     this.errorMessage,
@@ -716,6 +718,7 @@ class OcrResult {
         fatherName = '',
         motherName = '',
         subjectMarks = const {},
+        subjectsJson = '',
         confidence = 0.0,
         imagePath = null;
 }

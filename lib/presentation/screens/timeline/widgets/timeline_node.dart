@@ -1,10 +1,11 @@
 import '../../../../core/theme/theme_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../../../core/constants/colors.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/exam_data.dart';
+import '../../../providers/remote_data_provider.dart';
 
-class TimelineNode extends StatefulWidget {
+class TimelineNode extends ConsumerStatefulWidget {
   final String examName;
   final String eventTitle;
   final DateTime date;
@@ -25,10 +26,10 @@ class TimelineNode extends StatefulWidget {
   });
 
   @override
-  State<TimelineNode> createState() => _TimelineNodeState();
+  ConsumerState<TimelineNode> createState() => _TimelineNodeState();
 }
 
-class _TimelineNodeState extends State<TimelineNode>
+class _TimelineNodeState extends ConsumerState<TimelineNode>
     with SingleTickerProviderStateMixin {
   bool _isExpanded = false;
 
@@ -66,7 +67,8 @@ class _TimelineNodeState extends State<TimelineNode>
   // Find exam info for portal link
   ExamInfo? get _examInfo {
     try {
-      return ExamData.allExams.firstWhere(
+      final examsList = ref.read(allExamsProvider).value ?? ExamData.allExams;
+      return examsList.firstWhere(
         (e) => widget.examName.contains(e.code) || widget.examName.contains(e.name),
       );
     } catch (_) {

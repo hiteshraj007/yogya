@@ -1,20 +1,23 @@
 import '../../../../core/theme/theme_colors.dart';
 import 'package:flutter/material.dart';
-import '../../../../core/constants/colors.dart';
 import 'criteria_breakdown.dart';
 
 class EligibilityPulseCard extends StatefulWidget {
   final String examName;
   final String examCode;
-  final bool isEligible;
+  final String status;
   final Map<String, bool> criteria;
+  final int attemptsUsed;
+  final int attemptsAllowed;
 
   EligibilityPulseCard({
     super.key,
     required this.examName,
     required this.examCode,
-    required this.isEligible,
+    required this.status,
     required this.criteria,
+    required this.attemptsUsed,
+    required this.attemptsAllowed,
   });
 
   @override
@@ -37,7 +40,7 @@ class _EligibilityPulseCardState extends State<EligibilityPulseCard>
     _pulse = Tween<double>(begin: 1.0, end: 1.3).animate(
       CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut),
     );
-    if (widget.isEligible) {
+    if (widget.status == 'ELIGIBLE') {
       _pulseCtrl.repeat(reverse: true);
     }
   }
@@ -50,8 +53,11 @@ class _EligibilityPulseCardState extends State<EligibilityPulseCard>
 
   @override
   Widget build(BuildContext context) {
-    final statusColor =
-        widget.isEligible ? context.colors.eligible : context.colors.ineligible;
+    final statusColor = widget.status == 'ELIGIBLE' 
+        ? context.colors.eligible 
+        : widget.status == 'UPCOMING'
+            ? Colors.orangeAccent
+            : context.colors.ineligible;
 
     return GestureDetector(
       onTap: () => setState(() => _isExpanded = !_isExpanded),
@@ -79,7 +85,7 @@ class _EligibilityPulseCardState extends State<EligibilityPulseCard>
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: statusColor.withOpacity(0.15),
-                        boxShadow: widget.isEligible
+                        boxShadow: widget.status == 'ELIGIBLE'
                             ? [
                                 BoxShadow(
                                   color: statusColor
@@ -90,9 +96,11 @@ class _EligibilityPulseCardState extends State<EligibilityPulseCard>
                             : null,
                       ),
                       child: Icon(
-                        widget.isEligible
+                        widget.status == 'ELIGIBLE'
                             ? Icons.check_circle_rounded
-                            : Icons.cancel_rounded,
+                            : widget.status == 'UPCOMING'
+                                ? Icons.schedule_rounded
+                                : Icons.cancel_rounded,
                         color: statusColor,
                         size: 24,
                       ),
@@ -127,6 +135,27 @@ class _EligibilityPulseCardState extends State<EligibilityPulseCard>
                     ],
                   ),
                 ),
+                // Attempts badge
+                if (widget.status == 'ELIGIBLE' || widget.status == 'UPCOMING')
+                  Container(
+                    margin: EdgeInsets.only(right: 8),
+                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: context.colors.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      widget.attemptsAllowed == -1
+                          ? '∞ Left'
+                          : '${widget.attemptsAllowed - widget.attemptsUsed} Left',
+                      style: TextStyle(
+                        color: context.colors.primary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                  ),
                 // Status badge
                 Container(
                   padding: EdgeInsets.symmetric(
@@ -136,7 +165,11 @@ class _EligibilityPulseCardState extends State<EligibilityPulseCard>
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    widget.isEligible ? 'Eligible' : 'Not Eligible',
+                    widget.status == 'ELIGIBLE' 
+                        ? 'Eligible' 
+                        : widget.status == 'UPCOMING'
+                            ? 'Upcoming'
+                            : 'Not Eligible',
                     style: TextStyle(
                       color: statusColor,
                       fontSize: 11,

@@ -1,21 +1,21 @@
 import '../../../core/theme/theme_colors.dart';
 import 'package:flutter/material.dart';
-import '../../../core/constants/colors.dart';
-import '../../../core/constants/exam_data.dart';
 import '../../widgets/common/app_button.dart';
 import 'widgets/wizard_step.dart';
 import 'widgets/eligibility_pulse_card.dart';
-import 'widgets/exam_selector_grid.dart';
 import '../../../core/services/report_service.dart';
 import '../../../core/services/ocr_service.dart';
 import '../../../core/services/eligibility_service.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/profile_provider.dart';
 import '../../../data/providers/auth_provider.dart';
 import '../../providers/eligibility_provider.dart';
+import '../../providers/remote_data_provider.dart';
+import '../../../core/constants/exam_data.dart';
 
 class EligibilityScreen extends ConsumerStatefulWidget {
-  EligibilityScreen({super.key});
+  const EligibilityScreen({super.key});
 
   @override
   ConsumerState<EligibilityScreen> createState() => _EligibilityScreenState();
@@ -24,7 +24,6 @@ class EligibilityScreen extends ConsumerStatefulWidget {
 class _EligibilityScreenState extends ConsumerState<EligibilityScreen>
     with TickerProviderStateMixin {
   int _currentStep = 0;
-  final Set<String> _selectedExams = {};
 
   late AnimationController _stepCtrl;
   late Animation<double> _stepFade;
@@ -91,17 +90,24 @@ class _EligibilityScreenState extends ConsumerState<EligibilityScreen>
 
   Future<void> _nextStep() async {
     if (_currentStep == 0) {
-      if (_selectedExams.isEmpty) return;
-      setState(() => _currentStep = 1);
-      _stepCtrl.reset();
-      _stepCtrl.forward();
-      return;
-    }
-
-    if (_currentStep == 1) {
       final profile = ref.read(profileNotifierProvider).profile;
-      ref.read(eligibilityProvider.notifier).setSelectedExams(_selectedExams);
-      await ref.read(eligibilityProvider.notifier).computeForSelected(profile);
+      if (profile == null || profile.dateOfBirth.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Please complete your profile to check eligibility.',
+                style: TextStyle(fontFamily: 'Poppins', color: Colors.white),
+              ),
+              backgroundColor: context.colors.ineligible,
+            ),
+          );
+        }
+        return;
+      }
+
+      final allExams = await ref.read(allExamsProvider.future).catchError((_) => ExamData.allExams);
+      await ref.read(eligibilityProvider.notifier).computeAll(profile, allExams);
 
       final eligState = ref.read(eligibilityProvider);
       if (eligState.errorMessage != null) {
@@ -116,7 +122,7 @@ class _EligibilityScreenState extends ConsumerState<EligibilityScreen>
         return;
       }
 
-      setState(() => _currentStep = 2);
+      setState(() => _currentStep = 1);
       _stepCtrl.reset();
       _stepCtrl.forward();
       _resultCtrl.forward(from: 0);
@@ -128,16 +134,10 @@ class _EligibilityScreenState extends ConsumerState<EligibilityScreen>
       setState(() => _currentStep--);
       _stepCtrl.reset();
       _stepCtrl.forward();
-      if (_currentStep < 2) {
+      if (_currentStep < 1) {
         _resultCtrl.reset();
       }
     }
-  }
-
-  List<EligibilityEvaluation> _selectedEvaluations(EligibilityState state) {
-    return state.evaluations
-        .where((evaluation) => _selectedExams.contains(evaluation.exam.id))
-        .toList();
   }
 
   @override
@@ -173,7 +173,7 @@ class _EligibilityScreenState extends ConsumerState<EligibilityScreen>
               padding: EdgeInsets.symmetric(horizontal: 40, vertical: 16),
               child: WizardStepIndicator(
                 currentStep: _currentStep,
-                steps: ['Select Exams', 'Verify Details', 'Results'],
+                steps: ['Verify Details', 'Results'],
               ),
             ),
 
@@ -186,7 +186,7 @@ class _EligibilityScreenState extends ConsumerState<EligibilityScreen>
             ),
 
             // Bottom buttons
-            if (_currentStep < 2 || isChecking)
+            if (_currentStep < 1 || isChecking)
               Padding(
                 padding: EdgeInsets.all(20),
                 child: Row(
@@ -200,18 +200,17 @@ class _EligibilityScreenState extends ConsumerState<EligibilityScreen>
                         ),
                       ),
                     if (_currentStep > 0) SizedBox(width: 16),
-                    Expanded(
-                      flex: _currentStep == 0 ? 1 : 1,
-                      child: AppButton(
-                        label: _currentStep == 1 ? 'Check Eligibility' : 'Next',
-                        onPressed: _selectedExams.isEmpty && _currentStep == 0
-                            ? () {}
-                            : () {
-                                _nextStep();
-                              },
-                        isLoading: isChecking,
+                    if (_currentStep == 0)
+                      Expanded(
+                        flex: 1,
+                        child: AppButton(
+                          label: 'Check Eligibility',
+                          onPressed: () {
+                              _nextStep();
+                          },
+                          isLoading: isChecking,
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -224,90 +223,53 @@ class _EligibilityScreenState extends ConsumerState<EligibilityScreen>
   Widget _buildStepContent(EligibilityState eligState) {
     switch (_currentStep) {
       case 0:
-        return _buildExamSelection();
-      case 1:
         return _buildVerifyDetails();
-      case 2:
+      case 1:
         return _buildResults(eligState);
       default:
         return SizedBox();
     }
   }
 
-  // Step 1: Select Exams
-  Widget _buildExamSelection() {
-    return SingleChildScrollView(
-      physics: BouncingScrollPhysics(),
-      padding: EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(height: 8),
-          // Search bar
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              color: context.colors.bgCard,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: context.colors.glassBorder),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.search_rounded, color: context.colors.textHint, size: 20),
-                SizedBox(width: 10),
-                Expanded(
-                  child: TextField(
-                    style: TextStyle(
-                      color: context.colors.textPrimary,
-                      fontFamily: 'Poppins',
-                      fontSize: 14,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: 'Search exams...',
-                      hintStyle: TextStyle(
-                        color: context.colors.textHint,
-                        fontSize: 14,
-                      ),
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(height: 16),
-          Text(
-            '${_selectedExams.length} exams selected',
-            style: TextStyle(
-              color: context.colors.textHint,
-              fontSize: 12,
-              fontFamily: 'Poppins',
-            ),
-          ),
-          SizedBox(height: 12),
-          ExamSelectorGrid(
-            exams: ExamData.allExams,
-            selectedIds: _selectedExams,
-            onToggle: (id) {
-              setState(() {
-                if (_selectedExams.contains(id)) {
-                  _selectedExams.remove(id);
-                } else {
-                  _selectedExams.add(id);
-                }
-              });
-            },
-          ),
-          SizedBox(height: 20),
-        ],
-      ),
-    );
-  }
-
   // Step 2: Verify Details
   Widget _buildVerifyDetails() {
+    final profile = ref.watch(profileNotifierProvider).profile;
+    bool needsProfile = profile == null || profile.dateOfBirth.isEmpty;
+    
+    if (needsProfile) {
+       return Center(
+         child: Padding(
+           padding: EdgeInsets.symmetric(horizontal: 20),
+           child: Column(
+             mainAxisAlignment: MainAxisAlignment.center,
+             children: [
+               Icon(Icons.person_off_rounded, size: 60, color: context.colors.textHint),
+               SizedBox(height: 16),
+               Text(
+                 'Profile Incomplete',
+                 style: TextStyle(color: context.colors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'Poppins'),
+               ),
+               SizedBox(height: 8),
+               Text(
+                 'You must enter your details first to automatically generate the list of exams you are eligible for.',
+                 textAlign: TextAlign.center,
+                 style: TextStyle(color: context.colors.textSecondary, fontSize: 14, fontFamily: 'Poppins'),
+               ),
+               SizedBox(height: 24),
+               AppButton(
+                 label: 'Complete Profile',
+                 icon: Icons.edit_rounded,
+                 onPressed: () {
+                   Navigator.of(context).pop();
+                   context.push('/profile');
+                 },
+               ),
+             ],
+           ),
+         ),
+       );
+    }
+
     final snapshot = _profileSnapshot();
     return SingleChildScrollView(
       physics: BouncingScrollPhysics(),
@@ -328,68 +290,12 @@ class _EligibilityScreenState extends ConsumerState<EligibilityScreen>
           _buildVerifyField(
               'Age', '${snapshot['age']} years', Icons.cake_rounded),
           _buildVerifyField(
+              'Date of Birth', profile.dateOfBirth.isEmpty ? '—' : profile.dateOfBirth, Icons.calendar_today_rounded),
+          _buildVerifyField(
               'Category', snapshot['category'] ?? 'General', Icons.groups_rounded),
           _buildVerifyField('Qualification', snapshot['qualification'] ?? 'Unknown',
               Icons.school_rounded),
-          _buildVerifyField('Nationality', 'Indian', Icons.flag_rounded),
           SizedBox(height: 16),
-          // Selected exams list
-          Container(
-            padding: EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: context.colors.bgCard,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: context.colors.glassBorder),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.checklist_rounded,
-                        color: context.colors.primaryLight, size: 18),
-                    SizedBox(width: 8),
-                    Text(
-                      'Checking For',
-                      style: TextStyle(
-                        color: context.colors.textPrimary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        fontFamily: 'Poppins',
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _selectedExams.map((id) {
-                    final exam =
-                        ExamData.allExams.firstWhere((e) => e.id == id);
-                    return Container(
-                      padding: EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: context.colors.primary.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        exam.code,
-                        style: TextStyle(
-                          color: context.colors.primaryLight,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          fontFamily: 'Poppins',
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(height: 20),
         ],
       ),
     );
@@ -410,7 +316,7 @@ class _EligibilityScreenState extends ConsumerState<EligibilityScreen>
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: context.colors.primary.withOpacity(0.12),
+              color: context.colors.primary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: context.colors.primaryLight, size: 20),
@@ -440,7 +346,8 @@ class _EligibilityScreenState extends ConsumerState<EligibilityScreen>
               ],
             ),
           ),
-          Icon(Icons.edit_rounded, color: context.colors.textHint, size: 18),
+          // Display-only — no edit action
+          Icon(Icons.info_outline_rounded, color: context.colors.textHint.withValues(alpha: 0.4), size: 16),
         ],
       ),
     );
@@ -468,7 +375,7 @@ class _EligibilityScreenState extends ConsumerState<EligibilityScreen>
       );
     }
 
-    final evaluations = _selectedEvaluations(eligState);
+    final evaluations = eligState.evaluations;
     if (evaluations.isEmpty) {
       return Center(
         child: Text(
@@ -495,6 +402,11 @@ class _EligibilityScreenState extends ConsumerState<EligibilityScreen>
           ...evaluations.asMap().entries.map((entry) {
             final index = entry.key;
             final evaluation = entry.value;
+            final primaryGoal = eligState.primaryGoal;
+            final isGoalMatch = primaryGoal.isNotEmpty &&
+                (evaluation.exam.name.toLowerCase().contains(primaryGoal.toLowerCase()) ||
+                 evaluation.exam.code.toLowerCase().contains(primaryGoal.toLowerCase()) ||
+                 primaryGoal.toLowerCase().contains(evaluation.exam.code.toLowerCase()));
 
             return TweenAnimationBuilder<double>(
               tween: Tween(begin: 0.0, end: 1.0),
@@ -509,11 +421,43 @@ class _EligibilityScreenState extends ConsumerState<EligibilityScreen>
                   ),
                 );
               },
-              child: EligibilityPulseCard(
-                examName: evaluation.exam.name,
-                examCode: evaluation.exam.code,
-                isEligible: evaluation.isEligible,
-                criteria: evaluation.criteria,
+              child: Stack(
+                children: [
+                  EligibilityPulseCard(
+                    examName: evaluation.exam.name,
+                    examCode: evaluation.exam.code,
+                    status: evaluation.status,
+                    criteria: evaluation.criteria,
+                    attemptsUsed: evaluation.attemptsUsed,
+                    attemptsAllowed: evaluation.attemptsAllowed,
+                  ),
+                  if (isGoalMatch)
+                    Positioned(
+                      top: 10,
+                      right: 10,
+                      child: Container(
+                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: context.colors.eligible.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: context.colors.eligible.withValues(alpha: 0.5)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.star_rounded, size: 11, color: context.colors.eligible),
+                            SizedBox(width: 4),
+                            Text('Your Goal', style: TextStyle(
+                              color: context.colors.eligible,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              fontFamily: 'Poppins',
+                            )),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
               ),
             );
           }),
@@ -645,7 +589,7 @@ class _EligibilityScreenState extends ConsumerState<EligibilityScreen>
                     : eligible > 0
                         ? context.colors.partial
                         : context.colors.ineligible)
-                .withOpacity(0.3),
+                .withValues(alpha: 0.3),
             blurRadius: 16,
             offset: Offset(0, 6),
           ),
@@ -657,7 +601,7 @@ class _EligibilityScreenState extends ConsumerState<EligibilityScreen>
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Icon(
@@ -690,7 +634,7 @@ class _EligibilityScreenState extends ConsumerState<EligibilityScreen>
                       ? 'Congratulations! You meet all criteria!'
                       : 'Check details below',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.8),
+                    color: Colors.white.withValues(alpha: 0.8),
                     fontSize: 12,
                     fontFamily: 'Poppins',
                   ),

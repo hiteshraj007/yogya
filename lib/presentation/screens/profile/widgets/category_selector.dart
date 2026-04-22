@@ -1,6 +1,5 @@
 import '../../../../core/theme/theme_colors.dart';
 import 'package:flutter/material.dart';
-import '../../../../core/constants/colors.dart';
 import '../../../../core/constants/app_animations.dart';
 
 class CategorySelector extends StatelessWidget {

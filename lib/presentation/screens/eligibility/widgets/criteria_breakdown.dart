@@ -1,6 +1,5 @@
 import '../../../../core/theme/theme_colors.dart';
 import 'package:flutter/material.dart';
-import '../../../../core/constants/colors.dart';
 
 class CriteriaBreakdown extends StatelessWidget {
   final Map<String, bool> criteria;

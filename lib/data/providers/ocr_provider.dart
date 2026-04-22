@@ -151,12 +151,15 @@
 
 
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/services/ocr_service.dart';
+import '../../core/services/pdf_parser_service.dart';
 import '../../data/local/hive_service.dart';
 import '../../data/models/academic_doc_model.dart';
+import '../providers/auth_provider.dart';
 
 // ── OCR State ─────────────────────────────────────────────
 enum OcrStatus { idle, picking, processing, done, error }
@@ -199,10 +202,11 @@ class OcrState {
 
 // ── OCR Notifier ──────────────────────────────────────────
 class OcrNotifier extends StateNotifier<OcrState> {
-  OcrNotifier() : super(const OcrState());
+  final Ref ref;
+  OcrNotifier(this.ref) : super(const OcrState());
 
   final _ocrService = OcrService.instance;
-  static const double _reviewThreshold = 0.85;
+
 
   Future<OcrResult?> scanFromCamera() async {
     return _processImage(() => _ocrService.pickFromCamera());
@@ -210,6 +214,102 @@ class OcrNotifier extends StateNotifier<OcrState> {
 
   Future<OcrResult?> scanFromGallery() async {
     return _processImage(() => _ocrService.pickFromGallery());
+  }
+
+  /// Parses a PDF by sending bytes to the local Python microservice.
+  Future<OcrResult?> parsePdfBytes(Uint8List bytes, String filename) async {
+    state = state.copyWith(
+      status: OcrStatus.picking,
+      progress: 0.1,
+      statusMessage: 'Preparing PDF...',
+      errorMessage: null,
+      needsReview: false,
+    );
+
+    state = state.copyWith(
+      status: OcrStatus.processing,
+      progress: 0.3,
+      statusMessage: 'Sending PDF to parser service...',
+    );
+
+    // Check server availability first
+    final serverUp = await PdfParserService.instance.isServerAvailable();
+    if (!serverUp) {
+      state = state.copyWith(
+        status: OcrStatus.error,
+        progress: 0.0,
+        errorMessage:
+            'PDF parser service is not running.\n'
+            'Start it with: cd tools/pdf_parser && start.bat',
+        needsReview: false,
+      );
+      return null;
+    }
+
+    state = state.copyWith(
+      progress: 0.55,
+      statusMessage: 'Extracting data from PDF...',
+    );
+
+    final result = await PdfParserService.instance.parsePdf(bytes);
+
+    state = state.copyWith(
+      progress: 0.85,
+      statusMessage: 'Parsing structured data...',
+    );
+    await Future.delayed(const Duration(milliseconds: 250));
+
+    if (!result.success) {
+      state = state.copyWith(
+        status: OcrStatus.error,
+        progress: 0.0,
+        errorMessage: result.errorMessage ?? 'PDF parsing failed',
+        needsReview: false,
+      );
+      return null;
+    }
+
+    final needsReview = true; // FORCE REVIEW ALWAYS
+
+    // Persist the PDF filename reference (not a file copy — it's bytes)
+    String savedFileName = '';
+    try {
+      final docsDir = await getApplicationDocumentsDirectory();
+      final ext = p.extension(filename).isNotEmpty ? p.extension(filename) : '.pdf';
+      final newFileName = 'doc_${DateTime.now().millisecondsSinceEpoch}$ext';
+      savedFileName = p.join(docsDir.path, newFileName);
+      // Write raw bytes so the file is viewable later
+      await File(savedFileName).writeAsBytes(bytes);
+    } catch (e) {
+      // Non-fatal: continue without saved file path
+    }
+
+    final doc = AcademicDocModel(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      docType: result.docType,
+      fileName: savedFileName,
+      extractedText: result.rawText,
+      board: result.board,
+      year: result.year,
+      aggregate: result.aggregate,
+      stream: result.stream,
+      confidence: result.confidence,
+      isVerified: false, // Wait for review
+      uploadedAt: DateTime.now(),
+    );
+    final uid = ref.read(currentUserProvider)?.uid;
+    await HiveService.saveDoc(doc, uid: uid);
+
+    state = state.copyWith(
+      status: OcrStatus.done,
+      progress: 1.0,
+      statusMessage: 'PDF parsed. Please review detected fields.',
+      result: result,
+      needsReview: needsReview,
+      errorMessage: null,
+    );
+
+    return result;
   }
 
   Future<OcrResult?> _processImage(
@@ -265,7 +365,7 @@ class OcrNotifier extends StateNotifier<OcrState> {
       return null;
     }
 
-    final needsReview = result.confidence < _reviewThreshold;
+    final needsReview = true; // FORCE REVIEW ALWAYS
 
     // Save image permanently for the viewer feature
     String savedFileName = '';
@@ -290,17 +390,16 @@ class OcrNotifier extends StateNotifier<OcrState> {
       aggregate: result.aggregate,
       stream: result.stream,
       confidence: result.confidence,
-      isVerified: !needsReview,
+      isVerified: false, // Wait for review
       uploadedAt: DateTime.now(),
     );
-    await HiveService.saveDoc(doc);
+    final uid = ref.read(currentUserProvider)?.uid;
+    await HiveService.saveDoc(doc, uid: uid);
 
     state = state.copyWith(
       status: OcrStatus.done,
       progress: 1.0,
-      statusMessage: needsReview
-          ? 'Extraction done. Please review detected fields.'
-          : 'Done! Data extracted successfully.',
+      statusMessage: 'Extraction done. Please review detected fields.',
       result: result,
       needsReview: needsReview,
       errorMessage: null,
@@ -318,5 +417,5 @@ class OcrNotifier extends StateNotifier<OcrState> {
 
 // ── Provider ──────────────────────────────────────────────
 final ocrProvider = StateNotifierProvider<OcrNotifier, OcrState>(
-  (ref) => OcrNotifier(),
+  (ref) => OcrNotifier(ref),
 );

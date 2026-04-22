@@ -1,4 +1,5 @@
 import 'package:hive_flutter/hive_flutter.dart';
+import '../remote/firestore_sync_service.dart';
 import '../models/user_profile_model.dart';
 import '../models/academic_doc_model.dart';
 import '../models/eligibility_result_model.dart';
@@ -71,6 +72,12 @@ class HiveService {
   static Future<void> saveUserProfile(UserProfileModel profile) async {
     await _openUserBoxSafe();
     await _userProfileBox.put(profile.id, profile);
+    await FirestoreSyncService.syncProfileToCloud(profile.id, profile);
+  }
+
+  static Future<void> saveUserProfileOnlyLocal(UserProfileModel profile) async {
+    await _openUserBoxSafe();
+    await _userProfileBox.put(profile.id, profile);
   }
 
   static UserProfileModel? getUserProfile(String uid) {
@@ -87,24 +94,43 @@ class HiveService {
   static Box<AcademicDocModel> get _academicDocsBox =>
       Hive.box<AcademicDocModel>(_docsBox);
 
-  static Future<void> saveDoc(AcademicDocModel doc) async {
+  static Future<void> saveDoc(AcademicDocModel doc, {String? uid}) async {
     await _openDocsBoxSafe();
-    await _academicDocsBox.put(doc.id, doc);
+    final key = uid != null ? '${uid}_${doc.id}' : doc.id;
+    await _academicDocsBox.put(key, doc);
+    if (uid != null) {
+      await FirestoreSyncService.syncDocToCloud(uid, doc);
+    }
   }
 
-  static List<AcademicDocModel> getAllDocs() {
+  static Future<void> saveDocOnlyLocal(AcademicDocModel doc, {String? uid}) async {
+    await _openDocsBoxSafe();
+    final key = uid != null ? '${uid}_${doc.id}' : doc.id;
+    await _academicDocsBox.put(key, doc);
+  }
+
+  static List<AcademicDocModel> getAllDocs({String? uid}) {
     if (!Hive.isBoxOpen(_docsBox)) return [];
-    return _academicDocsBox.values.toList();
+    if (uid == null) return _academicDocsBox.values.toList();
+    return _academicDocsBox.toMap().entries
+        .where((e) => e.key.toString().startsWith('${uid}_'))
+        .map((e) => e.value)
+        .toList();
   }
 
-  static AcademicDocModel? getDoc(String id) {
+  static AcademicDocModel? getDoc(String id, {String? uid}) {
     if (!Hive.isBoxOpen(_docsBox)) return null;
-    return _academicDocsBox.get(id);
+    final key = uid != null ? '${uid}_$id' : id;
+    return _academicDocsBox.get(key);
   }
 
-  static Future<void> deleteDoc(String id) async {
+  static Future<void> deleteDoc(String id, {String? uid}) async {
     await _openDocsBoxSafe();
-    await _academicDocsBox.delete(id);
+    final key = uid != null ? '${uid}_$id' : id;
+    await _academicDocsBox.delete(key);
+    if (uid != null) {
+      await FirestoreSyncService.deleteDocFromCloud(uid, id);
+    }
   }
 
   // ── EligibilityResult CRUD ───────────────────────────────
@@ -112,18 +138,33 @@ class HiveService {
       Hive.box<EligibilityResultModel>(_eligibilityBox);
 
   static Future<void> saveEligibilityResult(
-      EligibilityResultModel result) async {
+      EligibilityResultModel result, {String? uid}) async {
     await _openEligibilityBoxSafe();
-    await _eligibilityBox2.put(result.examId, result);
+    final key = uid != null ? '${uid}_${result.examId}' : result.examId;
+    await _eligibilityBox2.put(key, result);
   }
 
-  static List<EligibilityResultModel> getAllEligibilityResults() {
+  static List<EligibilityResultModel> getAllEligibilityResults({String? uid}) {
     if (!Hive.isBoxOpen(_eligibilityBox)) return [];
-    return _eligibilityBox2.values.toList();
+    if (uid == null) return _eligibilityBox2.values.toList();
+    return _eligibilityBox2.toMap().entries
+        .where((e) => e.key.toString().startsWith('${uid}_'))
+        .map((e) => e.value)
+        .toList();
   }
 
   static Future<void> clearEligibilityResults() async {
     await _openEligibilityBoxSafe();
     await _eligibilityBox2.clear();
+  }
+
+  // ── Session Wipe ─────────────────────────────────────────
+  static Future<void> clearUserSessionData() async {
+    // We clear docs, eligibility, and attempts.
+    // We DO NOT clear the entire _userBox so that if someone logs in 
+    // with an old account, their profile is still locally cached.
+    if (Hive.isBoxOpen(_docsBox)) await _academicDocsBox.clear();
+    if (Hive.isBoxOpen(_eligibilityBox)) await _eligibilityBox2.clear();
+    if (Hive.isBoxOpen(_attemptHistoryBox)) await Hive.box(_attemptHistoryBox).clear();
   }
 }

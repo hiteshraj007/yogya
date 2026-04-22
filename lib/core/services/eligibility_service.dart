@@ -65,8 +65,10 @@ class EligibilityService {
     required List<AcademicDocModel> docs,
     required Map<String, int> attemptsByExam,
     Set<String>? examIds,
+    List<ExamInfo>? allExams,
   }) {
-    final targetExams = ExamData.allExams
+    final list = allExams ?? ExamData.allExams;
+    final targetExams = list
         .where((exam) => examIds == null || examIds.contains(exam.id))
         .toList();
 
@@ -123,10 +125,28 @@ class EligibilityService {
     final matchPercent = ((trueCount / criteria.length) * 100).round();
 
     final isEligible = criteria.values.every((v) => v);
+    
+    // Check if they can be eligible in the near future (Upcoming)
+    bool isUpcoming = false;
+    if (!isEligible) {
+      bool canFixAge = !ageOk && age < exam.minAge; // Too young
+      bool canFixQual = !qualificationOk && profile.graduationStatus == 'Pursuing'; // Pursuing graduation
+      
+      // If the ONLY missing criteria are fixable by time
+      isUpcoming = criteria.entries.every((e) {
+        if (e.value) return true; // It's passed
+        if (e.key == 'Age' && canFixAge) return true;
+        if (e.key == 'Qualification' && canFixQual) return true;
+        return false;
+      });
+      // But if they failed due to overage, they can NEVER be eligible
+      if (!ageOk && age > maxAge) isUpcoming = false;
+    }
+
     final status = isEligible
         ? 'ELIGIBLE'
-        : matchPercent >= 60
-            ? 'PARTIAL'
+        : isUpcoming
+            ? 'UPCOMING'
             : 'INELIGIBLE';
 
     return EligibilityEvaluation(
@@ -150,11 +170,13 @@ class EligibilityService {
     required List<AcademicDocModel> docs,
     required Map<String, int> attemptsByExam,
     Set<String>? examIds,
+    List<ExamInfo>? allExams,
     int yearsAhead = 2,
     DateTime? currentDate,
   }) {
     final now = currentDate ?? DateTime.now();
-    final targetExams = ExamData.allExams
+    final list = allExams ?? ExamData.allExams;
+    final targetExams = list
         .where((exam) => examIds == null || examIds.contains(exam.id))
         .toList();
 

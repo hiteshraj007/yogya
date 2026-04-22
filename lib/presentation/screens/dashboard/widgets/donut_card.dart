@@ -1,6 +1,5 @@
 import '../../../../core/theme/theme_colors.dart';
 import 'package:flutter/material.dart';
-import '../../../../core/constants/colors.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 class DonutCard extends StatefulWidget {

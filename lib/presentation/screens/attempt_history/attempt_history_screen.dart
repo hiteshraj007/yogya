@@ -1,19 +1,21 @@
 import '../../../core/theme/theme_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import '../../../core/constants/colors.dart';
 import '../../../core/constants/strings.dart';
 import '../../../core/constants/exam_data.dart';
 import '../../widgets/common/empty_state_widget.dart';
 
-class AttemptHistoryScreen extends StatefulWidget {
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/remote_data_provider.dart';
+
+class AttemptHistoryScreen extends ConsumerStatefulWidget {
   AttemptHistoryScreen({super.key});
 
   @override
-  State<AttemptHistoryScreen> createState() => _AttemptHistoryScreenState();
+  ConsumerState<AttemptHistoryScreen> createState() => _AttemptHistoryScreenState();
 }
 
-class _AttemptHistoryScreenState extends State<AttemptHistoryScreen>
+class _AttemptHistoryScreenState extends ConsumerState<AttemptHistoryScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
   late Box _attemptsBox;
@@ -695,7 +697,8 @@ class _AttemptHistoryScreenState extends State<AttemptHistoryScreen>
   String? _resolveExamId(String examName) {
     final lower = examName.toLowerCase().trim();
     if (lower.isEmpty) return null;
-    for (final exam in ExamData.allExams) {
+    final examsList = ref.read(allExamsProvider).value ?? ExamData.allExams;
+    for (final exam in examsList) {
       if (lower.contains(exam.code.toLowerCase()) ||
           lower.contains(exam.name.toLowerCase())) {
         return exam.id;

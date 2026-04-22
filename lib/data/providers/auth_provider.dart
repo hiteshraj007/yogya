@@ -24,6 +24,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/services/auth_service.dart';
+import '../local/hive_service.dart';
 
 // ── 1. AuthService singleton ──────────────────────────────
 final authServiceProvider = Provider<AuthService>((ref) {
@@ -173,6 +174,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   // via authStateProvider stream
   Future<void> logout() async {
     await _authService.signOut();
+    await HiveService.clearUserSessionData();
     state = const AuthState();
   }
 

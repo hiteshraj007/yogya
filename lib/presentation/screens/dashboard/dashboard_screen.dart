@@ -2,7 +2,6 @@ import '../../../core/theme/theme_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/constants/colors.dart';
 import '../../../core/constants/strings.dart';
 import '../../../core/constants/exam_data.dart';
 import '../../../core/services/exam_timeline_service.dart';
@@ -13,11 +12,11 @@ import '../../providers/remote_data_provider.dart';
 import 'widgets/greeting_header.dart';
 import 'widgets/donut_card.dart';
 import 'widgets/deadline_carousel.dart';
-import 'widgets/quick_actions_row.dart';
 import 'widgets/quote_card.dart';
+import 'widgets/notifications_sheet.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
-  DashboardScreen({super.key});
+  const DashboardScreen({super.key});
 
   @override
   ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
@@ -86,11 +85,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         .map((r) => r.examId)
         .toSet();
     final examKey = examIdsToKey(
-      eligibleExamIds.isEmpty ? null : eligibleExamIds,
+      eligibleExamIds.isEmpty ? {'NONE'} : eligibleExamIds,
     );
     final deadlinesAsync = ref.watch(deadlinesProvider(examKey));
     final fallbackDeadlines = ExamTimelineService.instance.upcomingDeadlines(
-      prioritizedExamIds: eligibleExamIds.isEmpty ? null : eligibleExamIds,
+      prioritizedExamIds: eligibleExamIds.isEmpty ? {'NONE'} : eligibleExamIds,
     );
     final dynamicDeadlines = deadlinesAsync.value ?? fallbackDeadlines;
     final isLiveSyncing = deadlinesAsync.isLoading;
@@ -120,7 +119,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                   : 'Graduation';
       final cat = p.category;
 
-      for (final exam in ExamData.allExams) {
+      final examsAsync = ref.watch(allExamsProvider);
+      final examsList = examsAsync.value ?? ExamData.allExams;
+      for (final exam in examsList) {
         bool ageOk = false;
         if (cat == 'OBC') {
           ageOk = age >= exam.minAge && age <= exam.maxAgeOBC;
@@ -149,7 +150,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         if (ageOk && qualOk) eligibleCount++;
       }
     }
-    final totalCount = ExamData.allExams.length;
+    final examsAsync = ref.watch(allExamsProvider);
+    final totalCount = (examsAsync.value ?? ExamData.allExams).length;
 
     return Scaffold(
       backgroundColor: context.colors.bgDark,
@@ -167,7 +169,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                     GreetingHeader(
                       userName: firstName,
                       onMenuTap: () => Scaffold.of(context).openDrawer(),
-                      onNotificationTap: () {},
+                      onNotificationTap: () {
+                        showModalBottomSheet(
+                          context: context,
+                          backgroundColor: Colors.transparent,
+                          isScrollControlled: true,
+                          builder: (context) => Padding(
+                            padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 20),
+                            child: const NotificationsSheet(),
+                          ),
+                        );
+                      },
                     ),
                     if (isLiveSyncing)
                       Padding(
@@ -343,7 +355,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: context.colors.partial.withOpacity(0.2),
+                color: context.colors.partial.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(Icons.campaign_rounded, 
@@ -366,7 +378,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                   Text(
                     '${nearest['event']} — $daysLeft days left',
                     style: TextStyle(
-                      color: Color(0xFF4E342E).withOpacity(0.7),
+                      color: Color(0xFF4E342E).withValues(alpha: 0.7),
                       fontSize: 11,
                       fontFamily: 'Poppins',
                     ),
@@ -392,7 +404,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: context.colors.primary.withOpacity(0.35),
+              color: context.colors.primary.withValues(alpha: 0.35),
               blurRadius: 16,
               offset: Offset(0, 6),
             ),
@@ -404,7 +416,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               width: 52,
               height: 52,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Icon(Icons.document_scanner_rounded,
@@ -428,7 +440,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                   Text(
                     'Upload 10th, 12th or Graduation docs for instant eligibility check',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.8),
+                      color: Colors.white.withValues(alpha: 0.8),
                       fontSize: 11,
                       fontFamily: 'Poppins',
                     ),
@@ -441,7 +453,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withValues(alpha: 0.2),
                 shape: BoxShape.circle,
               ),
               child: Icon(Icons.arrow_forward_rounded,
@@ -471,7 +483,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: context.colors.eligible.withOpacity(0.12),
+                  color: context.colors.eligible.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(Icons.verified_rounded,
@@ -505,7 +517,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: context.colors.eligible.withOpacity(0.12),
+                  color: context.colors.eligible.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -530,7 +542,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                   child: Container(
                     padding: EdgeInsets.symmetric(vertical: 10),
                     decoration: BoxDecoration(
-                      color: context.colors.primary.withOpacity(0.1),
+                      color: context.colors.primary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Center(

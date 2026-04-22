@@ -132,6 +132,30 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
 
             const SizedBox(height: 20),
 
+            if (widget.warningMessage != null) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: Colors.redAccent.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 24),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        widget.warningMessage!,
+                        style: const TextStyle(color: Colors.redAccent, fontSize: 13, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
             // ── FORM SECTION ──────────────────────────────
             _buildSectionHeader('Verification Details'),
             const SizedBox(height: 16),
@@ -188,6 +212,83 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
                 ),
               ],
             ),
+
+            if (widget.result.subjectMarks.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              _buildSectionHeader('Subjects & Marks'),
+              const SizedBox(height: 12),
+              Container(
+                decoration: BoxDecoration(
+                  color: context.colors.bgSurface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: context.colors.textSecondary.withOpacity(0.1)),
+                ),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: widget.result.subjectMarks.length,
+                  separatorBuilder: (context, index) => Divider(color: context.colors.textSecondary.withOpacity(0.1), height: 1),
+                  itemBuilder: (context, index) {
+                    final key = widget.result.subjectMarks.keys.elementAt(index);
+                    final value = widget.result.subjectMarks[key];
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: Text(
+                              key,
+                              style: TextStyle(
+                                color: context.colors.textSecondary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 1,
+                            child: Text(
+                              value ?? '',
+                              textAlign: TextAlign.end,
+                              style: TextStyle(
+                                color: context.colors.textPrimary,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ] else ...[
+              const SizedBox(height: 20),
+              _buildSectionHeader('Subjects & Marks'),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.orangeAccent.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.orangeAccent.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline, color: Colors.orangeAccent, size: 20),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'No subjects were extracted. Please select Re-upload if subjects are missing.',
+                        style: TextStyle(color: Colors.orangeAccent, fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
 
             if (_error != null) _buildErrorText(_error!),
 
