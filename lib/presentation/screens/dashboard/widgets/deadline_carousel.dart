@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 class DeadlineCarousel extends StatelessWidget {
   final List<Map<String, dynamic>> deadlines;
 
-  DeadlineCarousel({super.key, required this.deadlines});
+  const DeadlineCarousel({super.key, required this.deadlines});
 
   Color _getUrgencyColor(BuildContext context, String urgency) {
     switch (urgency) {
@@ -23,7 +23,7 @@ class DeadlineCarousel extends StatelessWidget {
       height: 140,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        physics: BouncingScrollPhysics(),
+        physics: const BouncingScrollPhysics(),
         padding: EdgeInsets.symmetric(horizontal: 20),
         itemCount: deadlines.length,
         itemBuilder: (context, index) {
@@ -54,13 +54,13 @@ class DeadlineCarousel extends StatelessWidget {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: urgencyColor.withOpacity(0.5),
+                            color: urgencyColor.withValues(alpha: 0.5),
                             blurRadius: 6,
                           ),
                         ],
                       ),
                     ),
-                    SizedBox(width: 8),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         d['event'],
@@ -75,7 +75,7 @@ class DeadlineCarousel extends StatelessWidget {
                     ),
                   ],
                 ),
-                SizedBox(height: 10),
+                const SizedBox(height: 10),
                 Text(
                   d['examName'],
                   style: TextStyle(
@@ -87,7 +87,7 @@ class DeadlineCarousel extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                Spacer(),
+                const Spacer(),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -102,7 +102,7 @@ class DeadlineCarousel extends StatelessWidget {
                     Container(
                       padding: EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: urgencyColor.withOpacity(0.15),
+                        color: urgencyColor.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(

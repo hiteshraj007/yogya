@@ -340,16 +340,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     return GestureDetector(
       onTap: () => context.push('/eligibility-engine'),
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
+          gradient: const LinearGradient(
             colors: [
               Color(0xFFFFF3E0),
               Color(0xFFFFE0B2),
             ],
           ),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Color(0xFFFFCC80)),
+          border: Border.all(color: const Color(0xFFFFCC80)),
         ),
         child: Row(
           children: [
@@ -360,17 +360,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 color: context.colors.partial.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(Icons.campaign_rounded, 
-                color: Color(0xFFE65100), size: 20),
+              child: const Icon(Icons.campaign_rounded, color: Color(0xFFE65100), size: 20),
             ),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     'You may be eligible for ${nearest['examName']}',
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: Color(0xFF4E342E),
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
@@ -388,7 +387,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 ],
               ),
             ),
-            Icon(Icons.chevron_right_rounded, color: Color(0xFFE65100)),
+            const Icon(Icons.chevron_right_rounded, color: Color(0xFFE65100)),
           ],
         ),
       ),
@@ -400,7 +399,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     return GestureDetector(
       onTap: () => context.go('/documents'),
       child: Container(
-        padding: EdgeInsets.all(20),
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           gradient: context.colors.primaryGradient,
           borderRadius: BorderRadius.circular(16),
@@ -408,7 +407,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             BoxShadow(
               color: context.colors.primary.withValues(alpha: 0.35),
               blurRadius: 16,
-              offset: Offset(0, 6),
+               offset: const Offset(0, 6),
             ),
           ],
         ),
@@ -421,15 +420,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 color: Colors.white.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: Icon(Icons.document_scanner_rounded,
+              child: const Icon(Icons.document_scanner_rounded,
                   color: Colors.white, size: 28),
             ),
-            SizedBox(width: 16),
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  const Text(
                     'Scan Marksheet',
                     style: TextStyle(
                       color: Colors.white,
@@ -438,7 +437,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                       fontFamily: 'Poppins',
                     ),
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
                     'Upload 10th, 12th or Graduation docs for instant eligibility check',
                     style: TextStyle(
@@ -450,7 +449,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 ],
               ),
             ),
-            SizedBox(width: 8),
+            const SizedBox(width: 8),
             Container(
               width: 36,
               height: 36,
@@ -458,7 +457,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 color: Colors.white.withValues(alpha: 0.2),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.arrow_forward_rounded,
+              child: const Icon(Icons.arrow_forward_rounded,
                   color: Colors.white, size: 18),
             ),
           ],
@@ -470,7 +469,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   // ── Recent Document Verified Card ────────────────────────
   Widget _buildRecentDocCard(BuildContext context) {
     return Container(
-      padding: EdgeInsets.all(16),
+       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: context.colors.bgCard,
         borderRadius: BorderRadius.circular(14),
@@ -488,10 +487,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                   color: context.colors.eligible.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(Icons.verified_rounded,
-                    color: context.colors.eligible, size: 22),
-              ),
-              SizedBox(width: 12),
+                 child: Icon(Icons.verified_rounded,
+                     color: context.colors.eligible, size: 22),
+               ),
+               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -535,14 +534,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               ),
             ],
           ),
-          SizedBox(height: 14),
+           const SizedBox(height: 14),
           Row(
             children: [
               Expanded(
                 child: GestureDetector(
                   onTap: () => context.go('/documents'),
                   child: Container(
-                    padding: EdgeInsets.symmetric(vertical: 10),
+                     padding: const EdgeInsets.symmetric(vertical: 10),
                     decoration: BoxDecoration(
                       color: context.colors.primary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10),
@@ -561,12 +560,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                   ),
                 ),
               ),
-              SizedBox(width: 12),
+               const SizedBox(width: 12),
               Expanded(
                 child: GestureDetector(
                   onTap: () => context.go('/documents'),
                   child: Container(
-                    padding: EdgeInsets.symmetric(vertical: 10),
+                     padding: const EdgeInsets.symmetric(vertical: 10),
                     decoration: BoxDecoration(
                       color: context.colors.bgCardLight,
                       borderRadius: BorderRadius.circular(10),

@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 class CriteriaBreakdown extends StatelessWidget {
   final Map<String, bool> criteria;
 
-  CriteriaBreakdown({
+  const CriteriaBreakdown({
     super.key,
     required this.criteria,
   });
@@ -29,7 +29,7 @@ class CriteriaBreakdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.all(12),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: context.colors.bgCardLight,
         borderRadius: BorderRadius.circular(12),
@@ -38,7 +38,7 @@ class CriteriaBreakdown extends StatelessWidget {
         children: criteria.entries.map((entry) {
           final isOk = entry.value;
           return Padding(
-            padding: EdgeInsets.symmetric(vertical: 6),
+            padding: const EdgeInsets.symmetric(vertical: 6),
             child: Row(
               children: [
                 Icon(
@@ -46,7 +46,7 @@ class CriteriaBreakdown extends StatelessWidget {
                   color: isOk ? context.colors.eligible : context.colors.ineligible,
                   size: 18,
                 ),
-                SizedBox(width: 12),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     entry.key,
@@ -62,8 +62,8 @@ class CriteriaBreakdown extends StatelessWidget {
                       EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
                     color: isOk
-                        ? context.colors.eligible.withOpacity(0.12)
-                        : context.colors.ineligible.withOpacity(0.12),
+                        ? context.colors.eligible.withValues(alpha: 0.12)
+                        : context.colors.ineligible.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Row(
@@ -78,7 +78,7 @@ class CriteriaBreakdown extends StatelessWidget {
                             : context.colors.ineligible,
                         size: 14,
                       ),
-                      SizedBox(width: 4),
+                       const SizedBox(width: 4),
                       Text(
                         isOk ? 'Pass' : 'Fail',
                         style: TextStyle(
