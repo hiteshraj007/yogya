@@ -20,4 +20,4 @@ COPY . .
 EXPOSE 5050
 
 # Run the app with Gunicorn
-CMD ["gunicorn", "pdf_parser:app", "--bind", "0.0.0.0:${PORT:-5050}", "--timeout", "120"]
+CMD gunicorn pdf_parser:app --bind 0.0.0.0:${PORT:-5050} --timeout 120
