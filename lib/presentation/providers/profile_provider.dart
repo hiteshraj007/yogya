@@ -281,9 +281,14 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       final normalizedGradStatus = graduationStatus.trim().toLowerCase();
       if (gradCourse.trim().isNotEmpty) {
         final course = gradCourse.trim();
-        computedQual = normalizedGradStatus == 'completed'
-            ? 'Graduation ($course)'
-            : 'Pursuing Graduation ($course)';
+        if (normalizedGradStatus == 'completed') {
+          computedQual = 'Graduation ($course)';
+        } else if (normalizedGradStatus == 'pursuing' ||
+            normalizedGradStatus.isEmpty) {
+          computedQual = 'Pursuing Graduation ($course)';
+        } else {
+          computedQual = 'Graduation ($course)';
+        }
       } else if (hasTwelfth) {
         computedQual = '12th Pass';
       } else if (hasTenth) {

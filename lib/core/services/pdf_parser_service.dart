@@ -563,8 +563,6 @@ class PdfParserService {
       return 'Completed';
     }
 
-    final y = int.tryParse(year.trim());
-    if (y != null && y > DateTime.now().year) return 'Pursuing';
     return '';
   }
 
