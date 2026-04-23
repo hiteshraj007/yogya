@@ -514,17 +514,17 @@ class PdfParserService {
 
     if (course.isEmpty) {
       final source = '$examText $boardOrUniversity $school'.toLowerCase();
-      if (source.contains('b.tech') || source.contains('btech')) {
+      if (RegExp(r'\bb\.?\s*tech\b').hasMatch(source)) {
         course = 'B.Tech';
-      } else if (source.contains('b.e') || source.contains('be ')) {
+      } else if (RegExp(r'\bb\.?\s*e\.?\b').hasMatch(source)) {
         course = 'B.E.';
-      } else if (source.contains('bca')) {
+      } else if (RegExp(r'\bbca\b').hasMatch(source)) {
         course = 'BCA';
-      } else if (source.contains('b.sc') || source.contains('bsc')) {
+      } else if (RegExp(r'\bb\.?\s*sc\b').hasMatch(source)) {
         course = 'B.Sc';
-      } else if (source.contains('b.com') || source.contains('bcom')) {
+      } else if (RegExp(r'\bb\.?\s*com\b').hasMatch(source)) {
         course = 'B.Com';
-      } else if (source.contains('b.a') || source.contains(' ba ')) {
+      } else if (RegExp(r'\bb\.?\s*a\.?\b').hasMatch(source)) {
         course = 'B.A.';
       }
     }
@@ -565,7 +565,7 @@ class PdfParserService {
 
     final y = int.tryParse(year.trim());
     if (y != null && y > DateTime.now().year) return 'Pursuing';
-    return 'Pursuing';
+    return '';
   }
 
   String _buildRawText(Map<String, dynamic> json) {

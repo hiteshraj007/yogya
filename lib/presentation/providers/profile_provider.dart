@@ -436,12 +436,12 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
     if (source.isEmpty) return existingCourse;
 
     final lower = source.toLowerCase();
-    if (lower.contains('btech') || lower.contains('b.tech')) return 'B.Tech';
-    if (lower.contains('be') || lower.contains('b.e')) return 'B.E.';
-    if (lower.contains('bca')) return 'BCA';
-    if (lower.contains('bsc') || lower.contains('b.sc')) return 'B.Sc';
-    if (lower.contains('bcom') || lower.contains('b.com')) return 'B.Com';
-    if (lower.contains('ba ') || lower.startsWith('ba')) return 'B.A.';
+    if (RegExp(r'\bb\.?\s*tech\b').hasMatch(lower)) return 'B.Tech';
+    if (RegExp(r'\bb\.?\s*e\.?\b').hasMatch(lower)) return 'B.E.';
+    if (RegExp(r'\bbca\b').hasMatch(lower)) return 'BCA';
+    if (RegExp(r'\bb\.?\s*sc\b').hasMatch(lower)) return 'B.Sc';
+    if (RegExp(r'\bb\.?\s*com\b').hasMatch(lower)) return 'B.Com';
+    if (RegExp(r'\bb\.?\s*a\.?\b').hasMatch(lower)) return 'B.A.';
 
     return existingCourse;
   }

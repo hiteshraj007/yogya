@@ -210,7 +210,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
         return normalizedCourse.contains(normalizedValue) ||
             normalizedValue.contains(normalizedCourse);
       },
-      orElse: () => value.trim(),
+      orElse: () => _sanitizeCourseFallback(value),
     );
     _gradCourseSelection = match;
   }
@@ -220,6 +220,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
         .toLowerCase()
         .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
         .trim();
+  }
+
+  String _sanitizeCourseFallback(String value) {
+    final cleaned = value.trim().replaceAll(RegExp(r'\s+'), ' ');
+    if (cleaned.length < 3 || cleaned.length > 120) return 'Other UG Course';
+    if (!RegExp(r'^[A-Za-z0-9\s\.\-\,\/\(\)&]+$').hasMatch(cleaned)) {
+      return 'Other UG Course';
+    }
+    return cleaned;
   }
 
   void _setGradUniversity(String value) {
