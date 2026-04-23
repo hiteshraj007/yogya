@@ -17,6 +17,14 @@ class PdfParserConfig {
 class PdfParserService {
   PdfParserService._();
   static final PdfParserService instance = PdfParserService._();
+  static const Set<String> _genericSpecializations = {
+    'na',
+    'n/a',
+    'none',
+    'nil',
+    'general',
+    'not specified',
+  };
 
   final _dio = Dio(
     BaseOptions(
@@ -133,6 +141,9 @@ class PdfParserService {
     final year        = _str(json['year'] ?? json['passing_year'] ?? json['year_of_passing']);
     final examText    = _str(json['exam'] ?? json['exam_name']);
     final schoolRaw   = _str(json['school'] ?? json['institution'] ?? json['college']);
+    final rawCourse   = _str(json['course'] ?? json['course_name'] ?? json['program'] ?? json['degree']);
+    final branch      = _str(json['branch'] ?? json['specialization'] ?? json['major']);
+    final semester    = _str(json['semester'] ?? json['current_semester']);
 
     // ── Aggregate / percentage ───────────────────────────────────────────
     final rawCgpa    = json['cgpa'];
@@ -217,6 +228,21 @@ class PdfParserService {
 
     // ── Stream ───────────────────────────────────────────────────────────
     final stream = _inferStream(subjectMarks, docType);
+    final courseName = _inferCourseName(
+      explicitCourse: rawCourse,
+      branch: branch,
+      examText: examText,
+      boardOrUniversity: rawBoard,
+      school: schoolRaw,
+    );
+    final graduationStatus = _inferGraduationStatus(
+      explicitStatus: _str(json['graduation_status'] ?? json['status']),
+      examText: examText,
+      semester: semester,
+      year: year,
+      docType: docType,
+      boardOrUniversity: rawBoard,
+    );
 
     // ── Confidence ───────────────────────────────────────────────────────
     final confidence = _computeConfidence(
@@ -241,6 +267,8 @@ class PdfParserService {
       stream: stream,
       dateOfBirth: dob,
       university: school.isNotEmpty ? school : rawBoard,
+      courseName: courseName,
+      graduationStatus: graduationStatus,
       examName: examText,
       rollNumber: rollNumber,
       registrationNumber: regNumber,
@@ -479,6 +507,75 @@ class PdfParserService {
     }
     if (hasComm) return 'Commerce';
     if (hasArts) return 'Arts / Humanities';
+    return '';
+  }
+
+  String _inferCourseName({
+    required String explicitCourse,
+    required String branch,
+    required String examText,
+    required String boardOrUniversity,
+    required String school,
+  }) {
+    String course = explicitCourse.trim();
+    final spec = branch.trim();
+
+    if (course.isEmpty) {
+      final source = '$examText $boardOrUniversity $school'.toLowerCase();
+      if (RegExp(r'\bb\.?\s*tech\b').hasMatch(source)) {
+        course = 'B.Tech';
+      } else if (RegExp(r'\bb\.?e\.?\b').hasMatch(source)) {
+        course = 'B.E.';
+      } else if (RegExp(r'\bbca\b').hasMatch(source)) {
+        course = 'BCA';
+      } else if (RegExp(r'\bb\.?\s*sc\b').hasMatch(source)) {
+        course = 'B.Sc';
+      } else if (RegExp(r'\bb\.?\s*com\b').hasMatch(source)) {
+        course = 'B.Com';
+      } else if (RegExp(r'\bb\.?\s*a\.?\b').hasMatch(source)) {
+        course = 'B.A.';
+      }
+    }
+
+    final normalizedSpec = spec.toLowerCase();
+    final canAppendSpec = spec.isNotEmpty &&
+        normalizedSpec.length > 2 &&
+        !_genericSpecializations.contains(normalizedSpec) &&
+        !normalizedSpec.contains('general');
+
+    if (course.isNotEmpty &&
+        canAppendSpec &&
+        !course.toLowerCase().contains(normalizedSpec)) {
+      return '$course in $spec';
+    }
+    return course;
+  }
+
+  String _inferGraduationStatus({
+    required String explicitStatus,
+    required String examText,
+    required String semester,
+    required String year,
+    required String docType,
+    required String boardOrUniversity,
+  }) {
+    final status = explicitStatus.trim();
+    if (status.isNotEmpty) return status;
+    if (docType != 'graduation' && docType != 'pg') return '';
+
+    final source = '$examText $semester $boardOrUniversity'.toLowerCase();
+    if (RegExp(r'\bsem(?:ester)?[\s.\-]?\d*\b').hasMatch(source) ||
+        source.contains('sessional') ||
+        source.contains('statement of marks')) {
+      return 'Pursuing';
+    }
+    if (source.contains('degree certificate') ||
+        source.contains('provisional certificate') ||
+        source.contains('convocation') ||
+        source.contains('final year')) {
+      return 'Completed';
+    }
+
     return '';
   }
 
