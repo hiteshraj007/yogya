@@ -63,6 +63,7 @@ dev_dependencies:
   flutter_lints: ^4.0.0
   hive_generator: ^2.0.1 
   build_runner: ^2.4.8 
+  flutter_launcher_icons: ^0.14.1
 
 flutter:
   uses-material-design: true
@@ -76,3 +77,18 @@ flutter:
         - asset: assets/fonts/Poppins-Regular.ttf
         - asset: assets/fonts/Poppins-Bold.ttf
         - asset: assets/fonts/Poppins-SemiBold.ttf
+
+
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/images/yogya_logo_1024.png"
+  min_sdk_android: 21
+  web:
+    generate: true
+    image_path: "assets/images/yogya_logo_1024.png"
+  windows:
+    generate: true
+    image_path: "assets/images/yogya_logo_1024.png"
+    icon_size: 48
