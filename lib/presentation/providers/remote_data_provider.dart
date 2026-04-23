@@ -71,8 +71,8 @@ final allExamsProvider = Provider<AsyncValue<List<ExamInfo>>>((ref) {
     if (qualification.isEmpty) {
       qualification = '10th Pass'; 
     }
-    int annualFrequency = 1;
-    int maxAttempts = -1;
+    int frequency = 1;
+    int maxAttempts = -99;
 
     final lower = name.toLowerCase();
     
@@ -84,7 +84,7 @@ final allExamsProvider = Provider<AsyncValue<List<ExamInfo>>>((ref) {
     } else if (lower.contains(RegExp(r'\bairforce\b|\bnavy\b|\barmy\b|\bdefence\b'))) {
       if (event['maxAge'] == null) maxAge = 23;
       if (event['minAge'] == null) minAge = 17;
-      annualFrequency = 2;
+      frequency = 2;
       maxAttempts = -1;
     } else if (lower.contains(RegExp(r'\bbank\b|\bsbi\b|\bibps\b|\brbi\b'))) {
       if (event['maxAge'] == null) maxAge = 30;
@@ -117,7 +117,7 @@ final allExamsProvider = Provider<AsyncValue<List<ExamInfo>>>((ref) {
       icon: '🔔',
       registrationUrl: '',
       officialInfoUrl: url,
-      annualFrequency: annualFrequency,
+      annualFrequency: frequency,
     );
   }
 

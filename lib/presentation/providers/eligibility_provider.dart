@@ -65,6 +65,17 @@ final eligibilityProvider =
     }
   });
 
+  ref.listen<AsyncValue<List<ExamInfo>>>(allExamsProvider, (previous, next) {
+    if (next.value != null && (previous?.value?.length != next.value?.length)) {
+      final profile = ref.read(profileNotifierProvider).profile;
+      if (profile != null) {
+        Future.microtask(() async {
+          await notifier.computeAll(profile, next.value!);
+        });
+      }
+    }
+  });
+
   return notifier;
 });
 
