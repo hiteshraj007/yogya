@@ -611,35 +611,10 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
     bool isMismatch = false;
     String? warningMsg;
 
-    bool isSameDate(String d1, String d2) {
-      final s1 = d1.trim();
-      final s2 = d2.trim();
-      if (s1 == s2) return true;
-      try {
-        final p1 = s1.split(RegExp(r'[-/]'));
-        final p2 = s2.split(RegExp(r'[-/]'));
-        if (p1.length == 3 && p2.length == 3) {
-          int? y1 = int.tryParse(p1[2]), m1 = int.tryParse(p1[1]), day1 = int.tryParse(p1[0]);
-          if (y1 != null && y1 < 100) y1 += 2000;
-          if (y1 != null && y1 < 1000) { y1 = int.tryParse(p1[0]); day1 = int.tryParse(p1[2]); }
-          
-          int? y2 = int.tryParse(p2[2]), m2 = int.tryParse(p2[1]), day2 = int.tryParse(p2[0]);
-          if (y2 != null && y2 < 100) y2 += 2000;
-          if (y2 != null && y2 < 1000) { y2 = int.tryParse(p2[0]); day2 = int.tryParse(p2[2]); }
-          
-          return y1 == y2 && m1 == m2 && day1 == day2;
-        }
-      } catch (_) {}
-      return false;
-    }
-
+    // DOB is exclusively sourced from the 10th marksheet — do NOT compare it
+    // against 12th/graduation documents which rarely contain it reliably.
     if (profile != null && (result.docType == '12th' || result.docType == 'graduation' || result.docType == 'pg')) {
-      if (profile.dateOfBirth.trim().isNotEmpty && result.dateOfBirth.trim().isNotEmpty &&
-          !isSameDate(profile.dateOfBirth, result.dateOfBirth)) {
-        isMismatch = true;
-        warningMsg = 'Mismatch detected! DOB does not match your 10th base document.';
-      }
-      if (!isMismatch && profile.name.trim().isNotEmpty && result.candidateName.trim().isNotEmpty) {
+      if (profile.name.trim().isNotEmpty && result.candidateName.trim().isNotEmpty) {
         if (!PdfParserService.namesMatch(profile.name, result.candidateName)) {
           isMismatch = true;
           warningMsg = 'Name mismatch detected! "${result.candidateName}" does not match the name on your 10th marksheet.';
