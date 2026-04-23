@@ -377,7 +377,12 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       gPercent = percentage;
       gStatus  = (graduationStatus != null && graduationStatus.isNotEmpty)
           ? graduationStatus
-          : '';
+          : (gStatus.isNotEmpty
+              ? gStatus
+              : ((int.tryParse(passingYear) ?? DateTime.now().year + 1) >
+                      DateTime.now().year
+                  ? 'Pursuing'
+                  : ''));
     }
 
     await saveProfile(
