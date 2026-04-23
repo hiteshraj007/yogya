@@ -9,6 +9,7 @@ import '../../../data/local/hive_service.dart';
 import '../../../data/providers/auth_provider.dart';
 import '../../providers/profile_provider.dart';
 import '../../providers/remote_data_provider.dart';
+import '../../providers/eligibility_provider.dart';
 import 'widgets/greeting_header.dart';
 import 'widgets/donut_card.dart';
 import 'widgets/deadline_carousel.dart';
@@ -94,8 +95,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     
     final isLiveSyncing = deadlinesAsync.isLoading;
 
+    final eligState = ref.watch(eligibilityProvider);
     int eligibleCount = 0;
-    if (cachedResults.isNotEmpty) {
+    if (eligState.evaluations.isNotEmpty) {
+      eligibleCount = eligState.evaluations.where((e) => e.isEligible).length;
+    } else if (cachedResults.isNotEmpty) {
       eligibleCount = cachedResults.where((r) => r.isEligible).length;
     } else if (profileState.profile != null) {
       final p = profileState.profile!;

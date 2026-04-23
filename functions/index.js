@@ -17,6 +17,7 @@ import { defineString } from "firebase-functions/params";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore, FieldValue, Timestamp } from "firebase-admin/firestore";
 import axios from "axios";
+import * as cheerio from "cheerio";
 
 // ── Firebase init ──────────────────────────────────────
 initializeApp();
@@ -41,29 +42,17 @@ function safeLower(v) {
 
 function parseExamId(title = "") {
   const t = safeLower(title);
-  if (t.includes("upsc")) return "upsc";
-  if (t.includes("ssc")) return "ssc";
-  if (t.includes("ibps")) return "ibps";
-  if (t.includes("rrb") || t.includes("railway")) return "rrb";
-  if (t.includes("bpsc")) return "bpsc";
-  if (t.includes("uppsc")) return "uppsc";
-  if (t.includes("rpsc")) return "rpsc";
-  if (t.includes("bank") || t.includes("sbi") || t.includes("rbi"))
-    return "banking";
-  if (
-    t.includes("nda") ||
-    t.includes("cds") ||
-    t.includes("afcat") ||
-    t.includes("airforce")
-  )
-    return "defence";
-  if (
-    t.includes("nta") ||
-    t.includes("jee") ||
-    t.includes("neet") ||
-    t.includes("cuet")
-  )
-    return "nta";
+  if (/\bupsc\b/.test(t)) return "upsc";
+  if (/\bssc\b/.test(t)) return "ssc";
+  if (/\bibps\b/.test(t)) return "ibps";
+  if (/\brrb\b/.test(t) || /\brailway\b/.test(t)) return "rrb";
+  if (/\bbpsc\b/.test(t)) return "bpsc";
+  if (/\buppsc\b/.test(t) || /\bupessc\b/.test(t)) return "uppsc";
+  if (/\brpsc\b/.test(t)) return "rpsc";
+  if (/\bmppsc\b/.test(t)) return "mppsc";
+  if (/\bbank\b/.test(t) || /\bsbi\b/.test(t) || /\brbi\b/.test(t)) return "banking";
+  if (/\bnda\b/.test(t) || /\bcds\b/.test(t) || /\bafcat\b/.test(t) || /\bairforce\b/.test(t) || /\barmy\b/.test(t) || /\bnavy\b/.test(t)) return "defence";
+  if (/\bnta\b/.test(t) || /\bjee\b/.test(t) || /\bneet\b/.test(t) || /\bcuet\b/.test(t)) return "nta";
   return "other";
 }
 
@@ -126,6 +115,43 @@ async function fetchEndpoint(url, apiKey, apiHost) {
   }
 
   return Array.isArray(res.data.data) ? res.data.data : [];
+}
+
+// ── Deep Scraper ───────────────────────────────────────
+async function scrapeExamDetails(url) {
+  try {
+    const res = await axios.get(url, { timeout: 6000 });
+    const html = res.data;
+    const $ = cheerio.load(html);
+    const text = $("body").text();
+
+    let minAge = null;
+    let maxAge = null;
+    let qualification = "";
+
+    const minMatch = text.match(/Minimum Age\s*:\s*(\d+)/i);
+    if (minMatch) minAge = parseInt(minMatch[1], 10);
+
+    const maxMatch = text.match(/Maximum Age\s*:\s*(\d+)/i);
+    if (maxMatch) maxAge = parseInt(maxMatch[1], 10);
+
+    const qLower = text.toLowerCase();
+    if (qLower.includes("bachelor degree") || qLower.includes("graduation") || qLower.includes("degree in any stream")) {
+      qualification = "Graduation";
+    } else if (qLower.includes("10+2") || qLower.includes("intermediate") || qLower.includes("12th pass")) {
+      qualification = "12th Pass";
+    } else if (qLower.includes("class 10") || qLower.includes("10th pass") || qLower.includes("matriculation")) {
+      qualification = "10th Pass";
+    } else if (qLower.includes("master degree") || qLower.includes("post graduation")) {
+      qualification = "Post Graduation";
+    } else if (qLower.includes("diploma")) {
+      qualification = "Diploma";
+    }
+
+    return { minAge, maxAge, qualification };
+  } catch (err) {
+    return { minAge: null, maxAge: null, qualification: "" };
+  }
 }
 
 // ── Doc builders ───────────────────────────────────────
@@ -265,11 +291,28 @@ export const scheduledSync = onSchedule(
       const finalTimeline = [...timelineMap.values()];
       const finalDeadlines = [...deadlineMap.values()];
 
+      console.log(`⏳ [scheduledSync] Deep scraping ${finalTimeline.length} URLs...`);
+      const finalTimelineWithScrape = [];
+      const batchLimit = 20;
+      
+      for (let i = 0; i < finalTimeline.length; i += batchLimit) {
+        const chunk = finalTimeline.slice(i, i + batchLimit);
+        const chunkPromises = chunk.map(async (doc) => {
+          if (doc.sourceUrl) {
+            const details = await scrapeExamDetails(doc.sourceUrl);
+            return { ...doc, ...details };
+          }
+          return doc;
+        });
+        const results = await Promise.all(chunkPromises);
+        finalTimelineWithScrape.push(...results);
+      }
+
       console.log(
-        `🧾 [scheduledSync] Timeline: ${finalTimeline.length}, Deadlines: ${finalDeadlines.length}`
+        `🧾 [scheduledSync] Timeline: ${finalTimelineWithScrape.length}, Deadlines: ${finalDeadlines.length}`
       );
 
-      await upsertDocs("timeline_events", finalTimeline, "timeline");
+      await upsertDocs("timeline_events", finalTimelineWithScrape, "timeline");
       await upsertDocs("exam_deadlines", finalDeadlines, "deadline");
 
       await db.collection("sync_meta").doc("meta").set(

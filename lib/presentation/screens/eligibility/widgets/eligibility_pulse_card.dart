@@ -146,7 +146,7 @@ class _EligibilityPulseCardState extends State<EligibilityPulseCard>
                     ),
                     child: Text(
                       widget.attemptsAllowed == -1
-                          ? '∞ Left'
+                          ? 'Data Missing'
                           : '${widget.attemptsAllowed - widget.attemptsUsed} Left',
                       style: TextStyle(
                         color: context.colors.primary,

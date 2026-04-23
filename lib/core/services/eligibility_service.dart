@@ -102,27 +102,32 @@ class EligibilityService {
     final baseAttemptsAllowed = _attemptLimitForCategory(exam, category);
     final attemptsUsed = attemptsByExam[exam.id] ?? 0;
 
-    int effectiveAge = age < exam.minAge ? exam.minAge : age;
-    int remainingDueToAge = 0;
-    if (effectiveAge <= maxAge) {
-      remainingDueToAge = ((maxAge - effectiveAge) + 1) * exam.annualFrequency;
+    int calculatedAttemptsAllowed;
+    if (baseAttemptsAllowed <= -99) {
+      calculatedAttemptsAllowed = -1;
+    } else {
+      int effectiveAge = age < exam.minAge ? exam.minAge : age;
+      int remainingDueToAge = 0;
+      if (effectiveAge <= maxAge) {
+        remainingDueToAge = ((maxAge - effectiveAge) + 1) * exam.annualFrequency;
+      }
+
+      int fixedRemaining = baseAttemptsAllowed == -1
+          ? remainingDueToAge
+          : (baseAttemptsAllowed - attemptsUsed);
+
+      if (fixedRemaining < 0) fixedRemaining = 0;
+
+      int actualRemaining = remainingDueToAge < fixedRemaining
+          ? remainingDueToAge
+          : fixedRemaining;
+
+      calculatedAttemptsAllowed = attemptsUsed + actualRemaining;
     }
-
-    int fixedRemaining = baseAttemptsAllowed == -1
-        ? remainingDueToAge
-        : (baseAttemptsAllowed - attemptsUsed);
-
-    if (fixedRemaining < 0) fixedRemaining = 0;
-
-    int actualRemaining = remainingDueToAge < fixedRemaining
-        ? remainingDueToAge
-        : fixedRemaining;
-
-    int calculatedAttemptsAllowed = attemptsUsed + actualRemaining;
 
     final qualificationOk = _checkQualification(exam, profile, docs);
     final ageOk = age >= exam.minAge && age <= maxAge;
-    final attemptsOk = baseAttemptsAllowed == -1 || attemptsUsed < baseAttemptsAllowed;
+    final attemptsOk = baseAttemptsAllowed <= -1 || attemptsUsed < baseAttemptsAllowed;
     final docsOk = _checkDocs(exam, docs, profile);
     final categoryOk = category.isNotEmpty;
 

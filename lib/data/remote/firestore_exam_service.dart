@@ -84,75 +84,100 @@ class FirestoreExamService {
   // These streams auto-update in the UI whenever Cloud Function
   // pushes new data to Firestore — no manual sync needed!
 
-  Stream<List<Map<String, dynamic>>> watchTimelineEvents({
-    Set<String>? prioritizedExamIds,
-  }) {
-    Query<Map<String, dynamic>> query = _db.collection('timeline_events');
-
-    if (prioritizedExamIds != null) {
-      if (prioritizedExamIds.contains('NONE')) {
-        return Stream.value([]);
-      }
-      if (!prioritizedExamIds.contains('ALL_EXAMS') && prioritizedExamIds.isNotEmpty) {
-        if (prioritizedExamIds.length <= 10) {
-          query = query.where('examId', whereIn: prioritizedExamIds.toList());
+  Stream<List<Map<String, dynamic>>> watchExams() async* {
+    try {
+      await for (final snap in _db.collection('exams').snapshots()) {
+        if (snap.docs.isEmpty) {
+          yield <Map<String, dynamic>>[];
+        } else {
+          yield snap.docs.map((d) => d.data()).toList();
         }
       }
+    } catch (_) {
+      // Fallback if firestore rules deny access or offline
+      yield <Map<String, dynamic>>[];
     }
+  }
 
-    return query.snapshots().map((snap) {
-      final results = snap.docs.map((d) {
-        final m = d.data();
-        final ts = m['date'];
-        return {
-          'examId': (m['examId'] ?? '').toString(),
-          'examName': (m['examName'] ?? '').toString(),
-          'event': (m['event'] ?? '').toString(),
-          'type': (m['type'] ?? 'notification').toString(),
-          'date': ts is Timestamp ? ts.toDate() : DateTime.now(),
-          'completed': m['completed'] == true,
-          'sourceUrl': (m['sourceUrl'] ?? '').toString(),
-        };
-      }).toList();
+  Stream<List<Map<String, dynamic>>> watchTimelineEvents({
+    Set<String>? prioritizedExamIds,
+  }) async* {
+    try {
+      Query<Map<String, dynamic>> query = _db.collection('timeline_events');
 
-      results.sort(
-          (a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
-      return results;
-    });
+      if (prioritizedExamIds != null) {
+        if (prioritizedExamIds.contains('NONE')) {
+          yield <Map<String, dynamic>>[];
+          return;
+        }
+        if (!prioritizedExamIds.contains('ALL_EXAMS') && prioritizedExamIds.isNotEmpty) {
+          if (prioritizedExamIds.length <= 10) {
+            query = query.where('examId', whereIn: prioritizedExamIds.toList());
+          }
+        }
+      }
+
+      await for (final snap in query.snapshots()) {
+        final results = snap.docs.map((d) {
+          final m = d.data();
+          final ts = m['date'];
+          return {
+            'examId': (m['examId'] ?? '').toString(),
+            'examName': (m['examName'] ?? '').toString(),
+            'event': (m['event'] ?? '').toString(),
+            'type': (m['type'] ?? 'notification').toString(),
+            'date': ts is Timestamp ? ts.toDate() : DateTime.now(),
+            'completed': m['completed'] == true,
+            'sourceUrl': (m['sourceUrl'] ?? '').toString(),
+          };
+        }).toList();
+
+        results.sort(
+            (a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
+        yield results;
+      }
+    } catch (_) {
+      yield <Map<String, dynamic>>[];
+    }
   }
 
   Stream<List<Map<String, dynamic>>> watchDeadlines({
     Set<String>? prioritizedExamIds,
-  }) {
-    Query<Map<String, dynamic>> query = _db.collection('exam_deadlines');
+  }) async* {
+    try {
+      Query<Map<String, dynamic>> query = _db.collection('exam_deadlines');
 
-    if (prioritizedExamIds != null) {
-      if (prioritizedExamIds.contains('NONE')) {
-        return Stream.value([]);
-      }
-      if (!prioritizedExamIds.contains('ALL_EXAMS') && prioritizedExamIds.isNotEmpty) {
-        if (prioritizedExamIds.length <= 10) {
-          query = query.where('examId', whereIn: prioritizedExamIds.toList());
+      if (prioritizedExamIds != null) {
+        if (prioritizedExamIds.contains('NONE')) {
+          yield <Map<String, dynamic>>[];
+          return;
+        }
+        if (!prioritizedExamIds.contains('ALL_EXAMS') && prioritizedExamIds.isNotEmpty) {
+          if (prioritizedExamIds.length <= 10) {
+            query = query.where('examId', whereIn: prioritizedExamIds.toList());
+          }
         }
       }
+
+      await for (final snap in query.snapshots()) {
+        final results = snap.docs.map((d) {
+          final m = d.data();
+          final ts = m['date'];
+          return {
+            'examId': (m['examId'] ?? '').toString(),
+            'examName': (m['examName'] ?? '').toString(),
+            'event': (m['event'] ?? '').toString(),
+            'date': ts is Timestamp ? ts.toDate() : DateTime.now(),
+            'urgency': (m['urgency'] ?? 'low').toString(),
+          };
+        }).toList();
+
+        results.sort(
+            (a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
+        yield results;
+      }
+    } catch (_) {
+      yield <Map<String, dynamic>>[];
     }
-
-    return query.snapshots().map((snap) {
-      final results = snap.docs.map((d) {
-        final m = d.data();
-        final ts = m['date'];
-        return {
-          'examId': (m['examId'] ?? '').toString(),
-          'examName': (m['examName'] ?? '').toString(),
-          'event': (m['event'] ?? '').toString(),
-          'date': ts is Timestamp ? ts.toDate() : DateTime.now(),
-          'urgency': (m['urgency'] ?? 'low').toString(),
-        };
-      }).toList();
-
-      results.sort(
-          (a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime));
-      return results;
-    });
   }
 }
