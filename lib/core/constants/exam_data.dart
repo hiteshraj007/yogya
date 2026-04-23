@@ -17,6 +17,7 @@ class ExamInfo {
   final String icon;
   final String registrationUrl;
   final String officialInfoUrl;
+  final int annualFrequency;
 
   const ExamInfo({
     required this.id,
@@ -37,6 +38,7 @@ class ExamInfo {
     this.icon = '📝',
     this.registrationUrl = '',
     this.officialInfoUrl = '',
+    this.annualFrequency = 1,
   });
 }
 
@@ -121,6 +123,7 @@ class ExamData {
       icon: '✈️',
       registrationUrl: 'https://afcat.cdac.in',
       officialInfoUrl: 'https://indianairforce.nic.in/content/afcat',
+      annualFrequency: 2,
     ),
     ExamInfo(
       id: 'ibps_po',
@@ -221,6 +224,7 @@ class ExamData {
       icon: '⚔️',
       registrationUrl: 'https://upsconline.nic.in',
       officialInfoUrl: 'https://upsc.gov.in/examinations/national-defence-academy-and-naval-academy-examination',
+      annualFrequency: 2,
     ),
     ExamInfo(
       id: 'cds',
@@ -241,6 +245,7 @@ class ExamData {
       icon: '🎖️',
       registrationUrl: 'https://upsconline.nic.in',
       officialInfoUrl: 'https://upsc.gov.in/examinations/combined-defence-services-examination',
+      annualFrequency: 2,
     ),
     ExamInfo(
       id: 'rrb_ntpc',

@@ -127,6 +127,62 @@ void main() {
 
       expect(result.first.isEligible, isTrue); // 7.0 * 9.5 = 66.5
     });
+
+    test('calculates correct dynamic attempts for SSC CHSL based on age', () {
+      final now = DateTime.now();
+      // Assume user is 19 years old today
+      final birthYear = now.year - 19;
+      // Using month 1 and day 1 so age calculation guarantees 19
+      final dob = '01/01/$birthYear'; 
+      final result = service.evaluate(
+        profile: profile(dob: dob, qualification: '12th Pass'),
+        docs: [],
+        attemptsByExam: {},
+        examIds: {'ssc_chsl'},
+      );
+
+      final chslResult = result.first;
+      expect(chslResult.isEligible, isTrue);
+      // maxAge for General is 27. At age 19, remaining attempts = (27 - 19 + 1) * 1 = 9
+      expect(chslResult.attemptsAllowed, 9);
+    });
+
+    test('calculates correct dynamic attempts for NDA based on frequency', () {
+      final now = DateTime.now();
+      final birthYear = now.year - 16;
+      final dob = '01/01/$birthYear';
+      final result = service.evaluate(
+        profile: profile(dob: dob, qualification: '12th Pass'),
+        docs: [],
+        attemptsByExam: {},
+        examIds: {'nda'},
+      );
+
+      final ndaResult = result.first;
+      expect(ndaResult.isEligible, isTrue);
+      // NDA frequency is 2. maxAge for General is 18. minAge is 16.
+      // At age 16, remaining = (18 - 16 + 1) * 2 = 6
+      expect(ndaResult.attemptsAllowed, 6);
+    });
+
+    test('caps attempts for UPSC based on fixed limit even if age permits', () {
+      final now = DateTime.now();
+      final birthYear = now.year - 25;
+      final dob = '01/01/$birthYear';
+      final result = service.evaluate(
+        profile: profile(dob: dob),
+        docs: docs(),
+        attemptsByExam: {'upsc_cse': 2},
+        examIds: {'upsc_cse'},
+      );
+
+      final upscResult = result.first;
+      expect(upscResult.isEligible, isTrue);
+      // Base limit is 6. Used is 2. Fixed remaining is 4.
+      // Age remaining is 8. Actual remaining is min(8, 4) = 4.
+      // Calculated allowed = used(2) + actual(4) = 6.
+      expect(upscResult.attemptsAllowed, 6);
+    });
   });
 }
 

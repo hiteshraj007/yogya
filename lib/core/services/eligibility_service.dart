@@ -99,12 +99,30 @@ class EligibilityService {
     final category = _normalizeCategory(profile.category);
     final age = _calculateAge(profile.dateOfBirth, onDate: referenceDate);
     final maxAge = _maxAgeForCategory(exam, category);
-    final attemptsAllowed = _attemptLimitForCategory(exam, category);
+    final baseAttemptsAllowed = _attemptLimitForCategory(exam, category);
     final attemptsUsed = attemptsByExam[exam.id] ?? 0;
+
+    int effectiveAge = age < exam.minAge ? exam.minAge : age;
+    int remainingDueToAge = 0;
+    if (effectiveAge <= maxAge) {
+      remainingDueToAge = ((maxAge - effectiveAge) + 1) * exam.annualFrequency;
+    }
+
+    int fixedRemaining = baseAttemptsAllowed == -1
+        ? remainingDueToAge
+        : (baseAttemptsAllowed - attemptsUsed);
+
+    if (fixedRemaining < 0) fixedRemaining = 0;
+
+    int actualRemaining = remainingDueToAge < fixedRemaining
+        ? remainingDueToAge
+        : fixedRemaining;
+
+    int calculatedAttemptsAllowed = attemptsUsed + actualRemaining;
 
     final qualificationOk = _checkQualification(exam, profile, docs);
     final ageOk = age >= exam.minAge && age <= maxAge;
-    final attemptsOk = attemptsAllowed == -1 || attemptsUsed < attemptsAllowed;
+    final attemptsOk = baseAttemptsAllowed == -1 || attemptsUsed < baseAttemptsAllowed;
     final docsOk = _checkDocs(exam, docs, profile);
     final categoryOk = category.isNotEmpty;
 
@@ -118,7 +136,7 @@ class EligibilityService {
 
     final missing = criteria.entries
         .where((entry) => !entry.value)
-        .map((entry) => _missingReason(entry.key, exam, attemptsAllowed))
+        .map((entry) => _missingReason(entry.key, exam, calculatedAttemptsAllowed))
         .toList();
 
     final trueCount = criteria.values.where((v) => v).length;
@@ -160,7 +178,7 @@ class EligibilityService {
       minAge: exam.minAge,
       maxAge: maxAge,
       attemptsUsed: attemptsUsed,
-      attemptsAllowed: attemptsAllowed,
+      attemptsAllowed: calculatedAttemptsAllowed,
       nextSteps: _buildNextSteps(exam, isEligible),
     );
   }
