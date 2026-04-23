@@ -529,9 +529,16 @@ class PdfParserService {
       }
     }
 
+    final normalizedSpec = spec.toLowerCase();
+    const genericSpecs = {'na', 'n/a', 'none', 'nil', 'general', 'not specified'};
+    final canAppendSpec = spec.isNotEmpty &&
+        normalizedSpec.length > 2 &&
+        !genericSpecs.contains(normalizedSpec) &&
+        !normalizedSpec.contains('general');
+
     if (course.isNotEmpty &&
-        spec.isNotEmpty &&
-        !course.toLowerCase().contains(spec.toLowerCase())) {
+        canAppendSpec &&
+        !course.toLowerCase().contains(normalizedSpec)) {
       return '$course in $spec';
     }
     return course;
