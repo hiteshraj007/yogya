@@ -493,9 +493,17 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const serviceAccount = JSON.parse(
-  fs.readFileSync(new URL("./serviceAccountKey.json", import.meta.url), "utf8")
-);
+function loadServiceAccount() {
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    return JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+  }
+
+  return JSON.parse(
+    fs.readFileSync(new URL("./serviceAccountKey.json", import.meta.url), "utf8")
+  );
+}
+
+const serviceAccount = loadServiceAccount();
 
 if (!admin.apps.length) {
   admin.initializeApp({
@@ -545,20 +553,30 @@ function urgencyFromDate(ts) {
 }
 
 async function fetchApiRows() {
-  const { RAPIDAPI_KEY, RAPIDAPI_HOST, RAPIDAPI_URL } = process.env;
-  if (!RAPIDAPI_KEY || !RAPIDAPI_HOST || !RAPIDAPI_URL) {
-    throw new Error("Missing RAPIDAPI_KEY / RAPIDAPI_HOST / RAPIDAPI_URL");
+  const { RAPIDAPI_KEY, RAPIDAPI_HOST, RAPIDAPI_URL, RAPIDAPI_URL_RESULTS, RAPIDAPI_URL_JOBS } = process.env;
+  const urls = [RAPIDAPI_URL, RAPIDAPI_URL_RESULTS, RAPIDAPI_URL_JOBS].filter(Boolean);
+
+  if (!RAPIDAPI_KEY || !RAPIDAPI_HOST || urls.length === 0) {
+    throw new Error(
+      "Missing RAPIDAPI_KEY / RAPIDAPI_HOST and at least one RAPIDAPI_URL value"
+    );
   }
 
-  const res = await axios.get(RAPIDAPI_URL, {
-    headers: {
-      "x-rapidapi-key": RAPIDAPI_KEY,
-      "x-rapidapi-host": RAPIDAPI_HOST,
-    },
-    timeout: 20000,
-  });
+  const responses = await Promise.all(
+    urls.map((url) =>
+      axios.get(url, {
+        headers: {
+          "x-rapidapi-key": RAPIDAPI_KEY,
+          "x-rapidapi-host": RAPIDAPI_HOST,
+        },
+        timeout: 20000,
+      })
+    )
+  );
 
-  return Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
+  return responses.flatMap((res) =>
+    Array.isArray(res.data) ? res.data : (res.data?.data ?? [])
+  );
 }
 
 function normalizeRows(rows) {
