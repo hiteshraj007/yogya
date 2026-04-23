@@ -21,6 +21,9 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen>
     with SingleTickerProviderStateMixin {
+  static final RegExp _courseNamePattern =
+      RegExp(r"^[A-Za-z0-9\s\.\-\,\/\(\)&\+']+$");
+
   // Personal Info
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
@@ -225,7 +228,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   String _sanitizeCourseFallback(String value) {
     final cleaned = value.trim().replaceAll(RegExp(r'\s+'), ' ');
     if (cleaned.length < 3 || cleaned.length > 120) return 'Other UG Course';
-    if (!RegExp(r"^[A-Za-z0-9\s\.\-\,\/\(\)&\+']+$").hasMatch(cleaned)) {
+    if (!_courseNamePattern.hasMatch(cleaned)) {
       return 'Other UG Course';
     }
     return cleaned;

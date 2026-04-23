@@ -17,6 +17,14 @@ class PdfParserConfig {
 class PdfParserService {
   PdfParserService._();
   static final PdfParserService instance = PdfParserService._();
+  static const Set<String> _genericSpecializations = {
+    'na',
+    'n/a',
+    'none',
+    'nil',
+    'general',
+    'not specified',
+  };
 
   final _dio = Dio(
     BaseOptions(
@@ -530,10 +538,9 @@ class PdfParserService {
     }
 
     final normalizedSpec = spec.toLowerCase();
-    const genericSpecs = {'na', 'n/a', 'none', 'nil', 'general', 'not specified'};
     final canAppendSpec = spec.isNotEmpty &&
         normalizedSpec.length > 2 &&
-        !genericSpecs.contains(normalizedSpec) &&
+        !_genericSpecializations.contains(normalizedSpec) &&
         !normalizedSpec.contains('general');
 
     if (course.isNotEmpty &&

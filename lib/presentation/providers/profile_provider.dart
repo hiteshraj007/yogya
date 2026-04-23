@@ -375,12 +375,13 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       gUni    = university;
       gYear   = passingYear;
       gPercent = percentage;
+      final currentYear = DateTime.now().year;
       gStatus  = (graduationStatus != null && graduationStatus.isNotEmpty)
           ? graduationStatus
           : (gStatus.isNotEmpty
               ? gStatus
-              : ((int.tryParse(passingYear) ?? DateTime.now().year + 1) >
-                      DateTime.now().year
+              : ((int.tryParse(passingYear) ?? currentYear + 1) >
+                      currentYear
                   ? 'Pursuing'
                   : ''));
     }
