@@ -550,8 +550,7 @@ class PdfParserService {
     if (docType != 'graduation' && docType != 'pg') return '';
 
     final source = '$examText $semester $boardOrUniversity'.toLowerCase();
-    if (source.contains('semester') ||
-        source.contains('sem ') ||
+    if (RegExp(r'\bsem(?:ester)?[\s.\-]?\d*\b').hasMatch(source) ||
         source.contains('sessional') ||
         source.contains('statement of marks')) {
       return 'Pursuing';
