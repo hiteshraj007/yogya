@@ -493,9 +493,21 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const serviceAccount = JSON.parse(
-  fs.readFileSync(new URL("./serviceAccountKey.json", import.meta.url), "utf8")
-);
+function loadServiceAccount() {
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    try {
+      return JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    } catch (error) {
+      throw new Error("FIREBASE_SERVICE_ACCOUNT contains invalid JSON");
+    }
+  }
+
+  return JSON.parse(
+    fs.readFileSync(new URL("./serviceAccountKey.json", import.meta.url), "utf8")
+  );
+}
+
+const serviceAccount = loadServiceAccount();
 
 if (!admin.apps.length) {
   admin.initializeApp({
@@ -545,20 +557,47 @@ function urgencyFromDate(ts) {
 }
 
 async function fetchApiRows() {
-  const { RAPIDAPI_KEY, RAPIDAPI_HOST, RAPIDAPI_URL } = process.env;
-  if (!RAPIDAPI_KEY || !RAPIDAPI_HOST || !RAPIDAPI_URL) {
-    throw new Error("Missing RAPIDAPI_KEY / RAPIDAPI_HOST / RAPIDAPI_URL");
+  const { RAPIDAPI_KEY, RAPIDAPI_HOST, RAPIDAPI_URL, RAPIDAPI_URL_RESULTS, RAPIDAPI_URL_JOBS } = process.env;
+  const urls = [RAPIDAPI_URL, RAPIDAPI_URL_RESULTS, RAPIDAPI_URL_JOBS].filter(Boolean);
+
+  if (!RAPIDAPI_KEY || !RAPIDAPI_HOST || urls.length === 0) {
+    throw new Error(
+      "Missing RAPIDAPI_KEY / RAPIDAPI_HOST and at least one RAPIDAPI_URL value"
+    );
   }
 
-  const res = await axios.get(RAPIDAPI_URL, {
-    headers: {
-      "x-rapidapi-key": RAPIDAPI_KEY,
-      "x-rapidapi-host": RAPIDAPI_HOST,
-    },
-    timeout: 20000,
-  });
+  const extractRows = (payload) =>
+    Array.isArray(payload) ? payload : (payload?.data ?? []);
 
-  return Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
+  const requests = urls.map((url) =>
+    axios.get(url, {
+      headers: {
+        "x-rapidapi-key": RAPIDAPI_KEY,
+        "x-rapidapi-host": RAPIDAPI_HOST,
+      },
+      timeout: 20000,
+    })
+  );
+
+  const results = await Promise.allSettled(requests);
+
+  const successful = results
+    .map((result, index) => ({ result, url: urls[index] }))
+    .filter(({ result }) => result.status === "fulfilled")
+    .flatMap(({ result }) => extractRows(result.value.data));
+
+  if (successful.length > 0) {
+    return successful;
+  }
+
+  const errors = results
+    .map((result, index) => ({ result, url: urls[index] }))
+    .filter(({ result }) => result.status === "rejected")
+    .map(({ result, url }) => `${url}: ${result.reason?.message ?? "request failed"}`);
+
+  throw new Error(
+    `Failed to fetch data from RapidAPI endpoints. Tried: ${urls.join(", ")}. Errors: ${errors.join(" | ")}`
+  );
 }
 
 function normalizeRows(rows) {
