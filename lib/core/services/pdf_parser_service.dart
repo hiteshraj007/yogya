@@ -133,6 +133,9 @@ class PdfParserService {
     final year        = _str(json['year'] ?? json['passing_year'] ?? json['year_of_passing']);
     final examText    = _str(json['exam'] ?? json['exam_name']);
     final schoolRaw   = _str(json['school'] ?? json['institution'] ?? json['college']);
+    final rawCourse   = _str(json['course'] ?? json['course_name'] ?? json['program'] ?? json['degree']);
+    final branch      = _str(json['branch'] ?? json['specialization'] ?? json['major']);
+    final semester    = _str(json['semester'] ?? json['current_semester']);
 
     // ── Aggregate / percentage ───────────────────────────────────────────
     final rawCgpa    = json['cgpa'];
@@ -217,6 +220,21 @@ class PdfParserService {
 
     // ── Stream ───────────────────────────────────────────────────────────
     final stream = _inferStream(subjectMarks, docType);
+    final courseName = _inferCourseName(
+      explicitCourse: rawCourse,
+      branch: branch,
+      examText: examText,
+      boardOrUniversity: rawBoard,
+      school: schoolRaw,
+    );
+    final graduationStatus = _inferGraduationStatus(
+      explicitStatus: _str(json['graduation_status'] ?? json['status']),
+      examText: examText,
+      semester: semester,
+      year: year,
+      docType: docType,
+      boardOrUniversity: rawBoard,
+    );
 
     // ── Confidence ───────────────────────────────────────────────────────
     final confidence = _computeConfidence(
@@ -241,6 +259,8 @@ class PdfParserService {
       stream: stream,
       dateOfBirth: dob,
       university: school.isNotEmpty ? school : rawBoard,
+      courseName: courseName,
+      graduationStatus: graduationStatus,
       examName: examText,
       rollNumber: rollNumber,
       registrationNumber: regNumber,
@@ -480,6 +500,72 @@ class PdfParserService {
     if (hasComm) return 'Commerce';
     if (hasArts) return 'Arts / Humanities';
     return '';
+  }
+
+  String _inferCourseName({
+    required String explicitCourse,
+    required String branch,
+    required String examText,
+    required String boardOrUniversity,
+    required String school,
+  }) {
+    String course = explicitCourse.trim();
+    final spec = branch.trim();
+
+    if (course.isEmpty) {
+      final source = '$examText $boardOrUniversity $school'.toLowerCase();
+      if (source.contains('b.tech') || source.contains('btech')) {
+        course = 'B.Tech';
+      } else if (source.contains('b.e') || source.contains('be ')) {
+        course = 'B.E.';
+      } else if (source.contains('bca')) {
+        course = 'BCA';
+      } else if (source.contains('b.sc') || source.contains('bsc')) {
+        course = 'B.Sc';
+      } else if (source.contains('b.com') || source.contains('bcom')) {
+        course = 'B.Com';
+      } else if (source.contains('b.a') || source.contains(' ba ')) {
+        course = 'B.A.';
+      }
+    }
+
+    if (course.isNotEmpty &&
+        spec.isNotEmpty &&
+        !course.toLowerCase().contains(spec.toLowerCase())) {
+      return '$course in $spec';
+    }
+    return course;
+  }
+
+  String _inferGraduationStatus({
+    required String explicitStatus,
+    required String examText,
+    required String semester,
+    required String year,
+    required String docType,
+    required String boardOrUniversity,
+  }) {
+    final status = explicitStatus.trim();
+    if (status.isNotEmpty) return status;
+    if (docType != 'graduation' && docType != 'pg') return '';
+
+    final source = '$examText $semester $boardOrUniversity'.toLowerCase();
+    if (source.contains('semester') ||
+        source.contains('sem ') ||
+        source.contains('sessional') ||
+        source.contains('statement of marks')) {
+      return 'Pursuing';
+    }
+    if (source.contains('degree certificate') ||
+        source.contains('provisional certificate') ||
+        source.contains('convocation') ||
+        source.contains('final year')) {
+      return 'Completed';
+    }
+
+    final y = int.tryParse(year.trim());
+    if (y != null && y > DateTime.now().year) return 'Pursuing';
+    return 'Pursuing';
   }
 
   String _buildRawText(Map<String, dynamic> json) {

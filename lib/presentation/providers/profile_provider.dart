@@ -274,11 +274,19 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       
       // Auto-compute display qualification
       String computedQual = 'Not Specified';
-      if (graduationStatus == 'Completed' && gradCourse.isNotEmpty) {
-        computedQual = 'Graduation ($gradCourse)';
-      } else if (twelfthBoard.isNotEmpty) {
+      final hasTenth =
+          tenthBoard.isNotEmpty || tenthYear.isNotEmpty || tenthPercentage.isNotEmpty;
+      final hasTwelfth =
+          twelfthBoard.isNotEmpty || twelfthYear.isNotEmpty || twelfthPercentage.isNotEmpty;
+      final normalizedGradStatus = graduationStatus.trim().toLowerCase();
+      if (gradCourse.trim().isNotEmpty) {
+        final course = gradCourse.trim();
+        computedQual = normalizedGradStatus == 'completed'
+            ? 'Graduation ($course)'
+            : 'Pursuing Graduation ($course)';
+      } else if (hasTwelfth) {
         computedQual = '12th Pass';
-      } else if (tenthBoard.isNotEmpty) {
+      } else if (hasTenth) {
         computedQual = '10th Pass';
       }
 
@@ -352,19 +360,19 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       if (newDob.isEmpty && dateOfBirth.isNotEmpty) newDob = dateOfBirth;
     } else if (dt.contains('pg') || dt.contains('post')) {
       // PG — store in grad fields (could be extended later)
-      gCourse = courseName ?? university;
+      gCourse = _resolveCourseName(courseName, university, gCourse);
       gUni    = university;
       gYear   = passingYear;
       gPercent = percentage;
       gStatus  = 'Completed';
     } else if (dt.contains('grad') || dt.contains('ug') || dt.contains('bachelor')) {
-      gCourse = courseName ?? university;
+      gCourse = _resolveCourseName(courseName, university, gCourse);
       gUni    = university;
       gYear   = passingYear;
       gPercent = percentage;
       gStatus  = (graduationStatus != null && graduationStatus.isNotEmpty)
           ? graduationStatus
-          : ((int.tryParse(passingYear) ?? 9999) > DateTime.now().year ? 'Pursuing' : 'Completed');
+          : (gStatus.isNotEmpty ? gStatus : 'Pursuing');
     }
 
     await saveProfile(
@@ -418,6 +426,24 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
     if (lower.contains('wbbse') || lower.contains('wbchse')) return 'West Bengal';
     if (lower.contains('bseap') || lower.contains('bieap')) return 'Andhra Pradesh';
     return '';
+  }
+
+  String _resolveCourseName(String? extractedCourse, String university, String existingCourse) {
+    final cleanedExtracted = (extractedCourse ?? '').trim();
+    if (cleanedExtracted.isNotEmpty) return cleanedExtracted;
+
+    final source = university.trim();
+    if (source.isEmpty) return existingCourse;
+
+    final lower = source.toLowerCase();
+    if (lower.contains('btech') || lower.contains('b.tech')) return 'B.Tech';
+    if (lower.contains('be') || lower.contains('b.e')) return 'B.E.';
+    if (lower.contains('bca')) return 'BCA';
+    if (lower.contains('bsc') || lower.contains('b.sc')) return 'B.Sc';
+    if (lower.contains('bcom') || lower.contains('b.com')) return 'B.Com';
+    if (lower.contains('ba ') || lower.startsWith('ba')) return 'B.A.';
+
+    return existingCourse;
   }
 
   void resetSaved() => state = state.copyWith(isSaved: false);

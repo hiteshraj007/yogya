@@ -74,6 +74,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   late AnimationController _ctrl;
   late List<Animation<double>> _fadeAnims;
   late List<Animation<Offset>> _slideAnims;
+  ProviderSubscription<ProfileState>? _profileSubscription;
 
   final List<String> _indianStates = [
     'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
@@ -104,6 +105,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
       }
       _loadSavedProfile();
     });
+
+    _profileSubscription = ref.listenManual<ProfileState>(
+      profileNotifierProvider,
+      (previous, next) {
+        final previousProfile = previous?.profile;
+        final nextProfile = next.profile;
+        if (nextProfile == null) return;
+
+        final changed = previousProfile == null ||
+            previousProfile.id != nextProfile.id ||
+            previousProfile.tenthBoard != nextProfile.tenthBoard ||
+            previousProfile.twelfthBoard != nextProfile.twelfthBoard ||
+            previousProfile.gradCourse != nextProfile.gradCourse ||
+            previousProfile.gradUniversity != nextProfile.gradUniversity ||
+            previousProfile.gradYear != nextProfile.gradYear ||
+            previousProfile.gradPercentage != nextProfile.gradPercentage ||
+            previousProfile.graduationStatus != nextProfile.graduationStatus;
+
+        if (changed && mounted) {
+          _loadSavedProfile();
+        }
+      },
+    );
   }
 
   void _loadSavedProfile() {
@@ -179,11 +203,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
 
   void _setGradCourse(String value) {
     if (value.isEmpty) { _gradCourseSelection = null; return; }
+    final normalizedValue = _normalizeText(value);
     final match = IndiaData.allCourses.firstWhere(
-      (c) => c.toLowerCase().contains(value.toLowerCase()),
-      orElse: () => 'Other UG Course',
+      (c) {
+        final normalizedCourse = _normalizeText(c);
+        return normalizedCourse.contains(normalizedValue) ||
+            normalizedValue.contains(normalizedCourse);
+      },
+      orElse: () => value.trim(),
     );
     _gradCourseSelection = match;
+  }
+
+  String _normalizeText(String input) {
+    return input
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
+        .trim();
   }
 
   void _setGradUniversity(String value) {
@@ -211,6 +247,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     _gradYearCtrl.dispose(); _gradPercentCtrl.dispose();
     _stateCtrl.dispose(); _examGoalCtrl.dispose();
     _nameTimer?.cancel(); _phoneTimer?.cancel(); _emailTimer?.cancel();
+    _profileSubscription?.close();
     _ctrl.dispose();
     super.dispose();
   }
@@ -713,10 +750,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   Widget _buildOcrNote(String message) {
     return Padding(
       padding: const EdgeInsets.only(top: 2),
-      child: Row(children: [
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Icon(Icons.verified_rounded, size: 13, color: context.colors.eligible),
         const SizedBox(width: 5),
-        Text(message, style: TextStyle(color: context.colors.eligible, fontSize: 11, fontFamily: 'Poppins')),
+        Expanded(
+          child: Text(
+            message,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: context.colors.eligible, fontSize: 11, fontFamily: 'Poppins'),
+          ),
+        ),
       ]),
     );
   }
