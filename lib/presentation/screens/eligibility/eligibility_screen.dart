@@ -106,7 +106,8 @@ class _EligibilityScreenState extends ConsumerState<EligibilityScreen>
         return;
       }
 
-      final allExams = await ref.read(allExamsProvider.future).catchError((_) => ExamData.allExams);
+      final allExamsAsync = ref.read(allExamsProvider);
+      final allExams = allExamsAsync.value ?? ExamData.allExams;
       await ref.read(eligibilityProvider.notifier).computeAll(profile, allExams);
 
       final eligState = ref.read(eligibilityProvider);

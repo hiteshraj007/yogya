@@ -17,6 +17,7 @@ class ExamInfo {
   final String icon;
   final String registrationUrl;
   final String officialInfoUrl;
+  final int annualFrequency;
 
   const ExamInfo({
     required this.id,
@@ -37,6 +38,7 @@ class ExamInfo {
     this.icon = '📝',
     this.registrationUrl = '',
     this.officialInfoUrl = '',
+    this.annualFrequency = 1,
   });
 }
 
