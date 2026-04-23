@@ -84,6 +84,13 @@ class FirestoreExamService {
   // These streams auto-update in the UI whenever Cloud Function
   // pushes new data to Firestore — no manual sync needed!
 
+  Stream<List<Map<String, dynamic>>> watchExams() {
+    return _db.collection('exams').snapshots().map((snap) {
+      if (snap.docs.isEmpty) return <Map<String, dynamic>>[];
+      return snap.docs.map((d) => d.data()).toList();
+    }).handleError((_) => <Map<String, dynamic>>[]);
+  }
+
   Stream<List<Map<String, dynamic>>> watchTimelineEvents({
     Set<String>? prioritizedExamIds,
   }) {
