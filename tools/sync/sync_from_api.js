@@ -495,7 +495,11 @@ dotenv.config();
 
 function loadServiceAccount() {
   if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-    return JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    try {
+      return JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    } catch (error) {
+      throw new Error("FIREBASE_SERVICE_ACCOUNT contains invalid JSON");
+    }
   }
 
   return JSON.parse(
@@ -565,28 +569,35 @@ async function fetchApiRows() {
   const extractRows = (payload) =>
     Array.isArray(payload) ? payload : (payload?.data ?? []);
 
-  const results = await Promise.allSettled(
-    urls.map((url) =>
-      axios.get(url, {
-        headers: {
-          "x-rapidapi-key": RAPIDAPI_KEY,
-          "x-rapidapi-host": RAPIDAPI_HOST,
-        },
-        timeout: 20000,
-      })
-    )
+  const requests = urls.map((url) =>
+    axios.get(url, {
+      headers: {
+        "x-rapidapi-key": RAPIDAPI_KEY,
+        "x-rapidapi-host": RAPIDAPI_HOST,
+      },
+      timeout: 20000,
+    })
   );
 
+  const results = await Promise.allSettled(requests);
+
   const successful = results
-    .filter((result) => result.status === "fulfilled")
-    .flatMap((result) => extractRows(result.value.data));
+    .map((result, index) => ({ result, url: urls[index] }))
+    .filter(({ result }) => result.status === "fulfilled")
+    .flatMap(({ result }) => extractRows(result.value.data));
 
   if (successful.length > 0) {
     return successful;
   }
 
-  const firstError = results.find((result) => result.status === "rejected");
-  throw firstError?.reason ?? new Error("Failed to fetch data from RapidAPI");
+  const errors = results
+    .map((result, index) => ({ result, url: urls[index] }))
+    .filter(({ result }) => result.status === "rejected")
+    .map(({ result, url }) => `${url}: ${result.reason?.message ?? "request failed"}`);
+
+  throw new Error(
+    `Failed to fetch data from RapidAPI endpoints. Tried: ${urls.join(", ")}. Errors: ${errors.join(" | ")}`
+  );
 }
 
 function normalizeRows(rows) {
