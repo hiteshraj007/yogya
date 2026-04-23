@@ -524,7 +524,7 @@ class PdfParserService {
       final source = '$examText $boardOrUniversity $school'.toLowerCase();
       if (RegExp(r'\bb\.?\s*tech\b').hasMatch(source)) {
         course = 'B.Tech';
-      } else if (RegExp(r'\bb\.?\s*e\.?\b').hasMatch(source)) {
+      } else if (RegExp(r'\bb\.?e\.?\b').hasMatch(source)) {
         course = 'B.E.';
       } else if (RegExp(r'\bbca\b').hasMatch(source)) {
         course = 'BCA';

@@ -376,14 +376,14 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       gYear   = passingYear;
       gPercent = percentage;
       final currentYear = DateTime.now().year;
-      gStatus  = (graduationStatus != null && graduationStatus.isNotEmpty)
-          ? graduationStatus
-          : (gStatus.isNotEmpty
-              ? gStatus
-              : ((int.tryParse(passingYear) ?? currentYear + 1) >
-                      currentYear
-                  ? 'Pursuing'
-                  : ''));
+      if (graduationStatus != null && graduationStatus.isNotEmpty) {
+        gStatus = graduationStatus;
+      } else if (gStatus.isEmpty) {
+        final parsedYear = int.tryParse(passingYear);
+        gStatus = parsedYear != null && parsedYear > currentYear
+            ? 'Pursuing'
+            : '';
+      }
     }
 
     await saveProfile(
@@ -448,7 +448,7 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
 
     final lower = source.toLowerCase();
     if (RegExp(r'\bb\.?\s*tech\b').hasMatch(lower)) return 'B.Tech';
-    if (RegExp(r'\bb\.?\s*e\.?\b').hasMatch(lower)) return 'B.E.';
+    if (RegExp(r'\bb\.?e\.?\b').hasMatch(lower)) return 'B.E.';
     if (RegExp(r'\bbca\b').hasMatch(lower)) return 'BCA';
     if (RegExp(r'\bb\.?\s*sc\b').hasMatch(lower)) return 'B.Sc';
     if (RegExp(r'\bb\.?\s*com\b').hasMatch(lower)) return 'B.Com';

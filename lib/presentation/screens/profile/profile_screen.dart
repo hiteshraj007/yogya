@@ -221,7 +221,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   String _normalizeText(String input) {
     return input
         .toLowerCase()
-        .replaceAll(RegExp(r'[^a-z0-9.]+'), ' ')
+        .replaceAll(RegExp(r"[^a-z0-9\.\-\,\/\(\)&\+']+"), ' ')
         .trim();
   }
 
