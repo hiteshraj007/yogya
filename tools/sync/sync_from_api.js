@@ -562,7 +562,10 @@ async function fetchApiRows() {
     );
   }
 
-  const responses = await Promise.all(
+  const extractRows = (payload) =>
+    Array.isArray(payload) ? payload : (payload?.data ?? []);
+
+  const results = await Promise.allSettled(
     urls.map((url) =>
       axios.get(url, {
         headers: {
@@ -574,9 +577,16 @@ async function fetchApiRows() {
     )
   );
 
-  return responses.flatMap((res) =>
-    Array.isArray(res.data) ? res.data : (res.data?.data ?? [])
-  );
+  const successful = results
+    .filter((result) => result.status === "fulfilled")
+    .flatMap((result) => extractRows(result.value.data));
+
+  if (successful.length > 0) {
+    return successful;
+  }
+
+  const firstError = results.find((result) => result.status === "rejected");
+  throw firstError?.reason ?? new Error("Failed to fetch data from RapidAPI");
 }
 
 function normalizeRows(rows) {
