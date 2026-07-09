@@ -1,0 +1,38 @@
+INSERT INTO exam_sources (
+    exam_short_name,
+    conducting_body,
+    notification_page_url,
+    pdf_keyword_filter
+) VALUES
+('UPSC CSE', 'UPSC', 'https://upsc.gov.in/examinations/active-examinations', 'notification'),
+('NDA', 'UPSC', 'https://upsc.gov.in/examinations/active-examinations', 'notification'),
+('CDS', 'UPSC', 'https://upsc.gov.in/examinations/active-examinations', 'notification'),
+('IES', 'UPSC', 'https://upsc.gov.in/examinations/active-examinations', 'notification'),
+('SSC CGL', 'SSC', 'https://ssc.nic.in/SSCFileServer/PortalManagement/', 'notification'),
+('SSC CHSL', 'SSC', 'https://ssc.nic.in/SSCFileServer/PortalManagement/', 'notification'),
+('SSC MTS', 'SSC', 'https://ssc.nic.in/SSCFileServer/PortalManagement/', 'notification'),
+('SSC CPO', 'SSC', 'https://ssc.nic.in/SSCFileServer/PortalManagement/', 'notification'),
+('SSC JE', 'SSC', 'https://ssc.nic.in/SSCFileServer/PortalManagement/', 'notification'),
+('NEET UG', 'NTA', 'https://nta.ac.in/', 'information bulletin'),
+('JEE Main', 'NTA', 'https://nta.ac.in/', 'information bulletin'),
+('CUET', 'NTA', 'https://nta.ac.in/', 'information bulletin'),
+('GATE', 'NTA', 'https://nta.ac.in/', 'information bulletin'),
+('IBPS PO', 'IBPS', 'https://ibps.in/', 'notification'),
+('IBPS Clerk', 'IBPS', 'https://ibps.in/', 'notification'),
+('IBPS SO', 'IBPS', 'https://ibps.in/', 'notification'),
+('IBPS RRB', 'IBPS', 'https://ibps.in/', 'notification'),
+('SBI PO', 'SBI', 'https://sbi.co.in/web/careers/', 'advertisement'),
+('SBI Clerk', 'SBI', 'https://sbi.co.in/web/careers/', 'advertisement'),
+('RBI Grade B', 'RBI', 'https://rbi.org.in/scripts/Opportunities.aspx', 'advertisement'),
+('RBI Assistant', 'RBI', 'https://rbi.org.in/scripts/Opportunities.aspx', 'advertisement'),
+('RRB NTPC', 'RRB', 'https://rrbcdg.gov.in/', 'cen'),
+('RRB Group D', 'RRB', 'https://rrbcdg.gov.in/', 'cen'),
+('RRB JE', 'RRB', 'https://rrbcdg.gov.in/', 'cen'),
+('RPSC RAS', 'RPSC', 'https://rpsc.rajasthan.gov.in/', 'advertisement'),
+('RPSC 1st Grade', 'RPSC', 'https://rpsc.rajasthan.gov.in/', 'advertisement'),
+('RPSC 2nd Grade', 'RPSC', 'https://rpsc.rajasthan.gov.in/', 'advertisement'),
+('LIC AAO', 'LIC', 'https://licindia.in/Bottom-Links/Careers', 'notification'),
+('LIC ADO', 'LIC', 'https://licindia.in/Bottom-Links/Careers', 'notification'),
+('CTET', 'CBSE', 'https://ctet.nic.in/', 'information bulletin')
+ON CONFLICT DO NOTHING;
+

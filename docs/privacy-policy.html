@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yogya — Privacy Policy</title>
+    <style>
+        :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --accent: #38bdf8; --muted: #94a3b8; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+        .container { max-width: 800px; margin: 0 auto; padding: 40px 20px; }
+        h1 { font-size: 2rem; color: var(--accent); margin-bottom: 8px; }
+        .subtitle { color: var(--muted); margin-bottom: 40px; }
+        h2 { font-size: 1.3rem; color: var(--accent); margin: 32px 0 12px; padding-bottom: 8px; border-bottom: 1px solid #334155; }
+        h3 { font-size: 1.1rem; margin: 20px 0 8px; }
+        p, li { color: var(--text); margin-bottom: 12px; }
+        ul { padding-left: 24px; }
+        li { margin-bottom: 8px; }
+        .card { background: var(--card); border-radius: 12px; padding: 24px; margin: 16px 0; border: 1px solid #334155; }
+        table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+        th, td { text-align: left; padding: 12px; border-bottom: 1px solid #334155; }
+        th { color: var(--accent); font-weight: 600; }
+        a { color: var(--accent); }
+        .updated { color: var(--muted); font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Privacy Policy</h1>
+        <p class="subtitle">Yogya — Intelligent Exam Eligibility & Tracking Platform</p>
+        <p class="updated">Last updated: June 21, 2026</p>
+
+        <h2>1. Introduction</h2>
+        <p>Yogya ("we", "our", "the app") is a mobile application that helps Indian students check their eligibility for government examinations, track exam deadlines, and manage academic documents. This Privacy Policy explains how we collect, use, and protect your information.</p>
+
+        <h2>2. Information We Collect</h2>
+
+        <div class="card">
+            <h3>2.1 Information You Provide</h3>
+            <table>
+                <tr><th>Data</th><th>Purpose</th><th>Required?</th></tr>
+                <tr><td>Email address</td><td>Account creation & login</td><td>Yes</td></tr>
+                <tr><td>Date of birth</td><td>Age eligibility calculation</td><td>Yes</td></tr>
+                <tr><td>Education details (board, percentage, stream)</td><td>Exam eligibility checking</td><td>Yes</td></tr>
+                <tr><td>Category (General/OBC/SC/ST/EWS)</td><td>Category-specific eligibility rules</td><td>Yes</td></tr>
+                <tr><td>Marksheet images</td><td>OCR data extraction (processed, not stored permanently)</td><td>Optional</td></tr>
+            </table>
+        </div>
+
+        <div class="card">
+            <h3>2.2 Information Collected Automatically</h3>
+            <table>
+                <tr><th>Data</th><th>Purpose</th><th>Tool</th></tr>
+                <tr><td>Crash reports & stack traces</td><td>Bug fixing & app stability</td><td>Sentry</td></tr>
+                <tr><td>App performance metrics</td><td>Speed optimization</td><td>Sentry Performance</td></tr>
+                <tr><td>Device type & OS version</td><td>Compatibility & debugging</td><td>Sentry</td></tr>
+                <tr><td>Push notification token</td><td>Sending exam deadline reminders</td><td>Firebase Cloud Messaging</td></tr>
+            </table>
+        </div>
+
+        <h2>3. How We Use Your Information</h2>
+        <ul>
+            <li><strong>Eligibility checking:</strong> Your education, age, and category data is sent to our server to calculate which exams you're eligible for.</li>
+            <li><strong>Deadline notifications:</strong> We use your tracked exams to send timely registration deadline reminders.</li>
+            <li><strong>Marksheet processing:</strong> Uploaded marksheet images are processed using Google Gemini AI and Groq AI to extract text data. Images are not permanently stored after processing.</li>
+            <li><strong>App improvement:</strong> Crash reports and performance data help us fix bugs and improve the app experience.</li>
+        </ul>
+
+        <h2>4. Third-Party Services</h2>
+        <p>We use the following third-party services that may process your data:</p>
+        <div class="card">
+            <table>
+                <tr><th>Service</th><th>Purpose</th><th>Data Accessed</th><th>Privacy Policy</th></tr>
+                <tr><td>Firebase (Google)</td><td>Authentication, push notifications, data storage</td><td>Email, device token</td><td><a href="https://firebase.google.com/support/privacy" target="_blank">Link</a></td></tr>
+                <tr><td>Sentry</td><td>Error tracking & performance</td><td>Crash reports, device info</td><td><a href="https://sentry.io/privacy/" target="_blank">Link</a></td></tr>
+                <tr><td>Supabase</td><td>Database & file storage</td><td>Exam data, user profiles</td><td><a href="https://supabase.com/privacy" target="_blank">Link</a></td></tr>
+                <tr><td>Google Gemini AI</td><td>Marksheet OCR & criteria extraction</td><td>Uploaded document images</td><td><a href="https://ai.google.dev/gemini-api/terms" target="_blank">Link</a></td></tr>
+                <tr><td>Groq</td><td>Marksheet data structuring</td><td>Extracted text from marksheets</td><td><a href="https://groq.com/privacy-policy/" target="_blank">Link</a></td></tr>
+            </table>
+        </div>
+
+        <h2>5. Data Storage & Security</h2>
+        <ul>
+            <li>Your profile data is stored securely in Supabase (PostgreSQL) with Row Level Security (RLS) policies.</li>
+            <li>Sensitive data on your device (tokens, credentials) is stored using encrypted secure storage, not plain SharedPreferences.</li>
+            <li>All network communication uses HTTPS/TLS encryption.</li>
+            <li>API access is rate-limited to prevent abuse.</li>
+            <li>We do not sell, trade, or rent your personal information to third parties.</li>
+        </ul>
+
+        <h2>6. Data Retention</h2>
+        <ul>
+            <li><strong>Account data:</strong> Retained as long as your account is active. Deleted upon account deletion request.</li>
+            <li><strong>Marksheet images:</strong> Processed in-memory and not permanently stored on our servers.</li>
+            <li><strong>Crash reports:</strong> Retained for 90 days on Sentry, then automatically deleted.</li>
+            <li><strong>Exam data:</strong> Public government exam information, retained indefinitely.</li>
+        </ul>
+
+        <h2>7. Your Rights</h2>
+        <p>You have the right to:</p>
+        <ul>
+            <li><strong>Access:</strong> Request a copy of your personal data.</li>
+            <li><strong>Correction:</strong> Update or correct your profile information within the app.</li>
+            <li><strong>Deletion:</strong> Request deletion of your account and all associated data by contacting us.</li>
+            <li><strong>Opt-out:</strong> Disable push notifications from your device settings.</li>
+        </ul>
+
+        <h2>8. Children's Privacy</h2>
+        <p>Yogya is intended for users aged 15 and above. We do not knowingly collect information from children under 15. If we learn that we have collected data from a child under 15, we will take steps to delete it.</p>
+
+        <h2>9. Changes to This Policy</h2>
+        <p>We may update this Privacy Policy from time to time. We will notify you of any significant changes through the app or via email. The "Last updated" date at the top indicates when the policy was last revised.</p>
+
+        <h2>10. Contact Us</h2>
+        <div class="card">
+            <p>If you have any questions about this Privacy Policy or your data, contact us at:</p>
+            <p><strong>Email:</strong> <a href="mailto:hiteshpuhorit@gmail.com">hiteshpuhorit@gmail.com</a></p>
+            <p><strong>Developer:</strong> Hitesh Purohit</p>
+        </div>
+    </div>
+</body>
+</html>
