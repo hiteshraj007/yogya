@@ -23,21 +23,18 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
-        working-directory: yogya
 
       - name: Analyze code
         run: flutter analyze --no-fatal-infos
-        working-directory: yogya
 
       - name: Run tests with coverage
         run: flutter test --coverage
-        working-directory: yogya
 
       - name: Upload coverage to Codecov
         if: github.event_name == 'push'
         uses: codecov/codecov-action@v4
         with:
-          file: yogya/coverage/lcov.info
+          file: coverage/lcov.info
           flags: flutter
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
