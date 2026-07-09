@@ -48,3 +48,39 @@ app.*.map.json
 tools/seed/serviceAccountKey.json
 tools/sync/serviceAccountKey.json
 node_modules
+
+# ─── Environment & Secrets (CRITICAL) ───
+.env
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+!backend/.env.example
+
+# ─── Android Signing Keys ───
+*.jks
+*.keystore
+key.properties
+upload-keystore.jks
+
+# ─── Debug Symbols (obfuscation output) ───
+build/debug-info/
+*.symbols
+*.map.json
+
+# ─── IDE & OS ───
+.vscode/
+*.hprof
+
+sentry.properties
+
+# ─── Temp / Build Tools ───
+sentry-wizard.exe
+sentry-wizard
+
+# ─── Test Data (large images, not for git) ───
+all_board_10th_marksheet/
+all_board_12th_marksheet/
+
+# ─── Native build artifacts ───
+build/native_hooks/

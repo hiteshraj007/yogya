@@ -7,6 +7,7 @@ environment:
   sdk: '>=3.0.0 <4.0.0'
 
 dependencies:
+  sentry_flutter: ^9.22.0
   flutter:
     sdk: flutter
 
@@ -56,8 +57,10 @@ dependencies:
   path_provider: ^2.1.5
   flutter_local_notifications: ^17.2.2
   timezone: ^0.9.4
+  flutter_dotenv: ^6.0.1
 
 dev_dependencies:
+  sentry_dart_plugin: ^3.4.0
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
@@ -71,6 +74,7 @@ flutter:
     - assets/images/
     - assets/animations/
     - assets/fonts/
+    - .env
   fonts:
     - family: Poppins
       fonts:
@@ -92,3 +96,9 @@ flutter_launcher_icons:
     generate: true
     image_path: "assets/images/yogya_logo_1024.png"
     icon_size: 48
+
+sentry:
+  upload_debug_symbols: true
+  upload_source_maps: true
+  project: flutter
+  org: hitesh-purohit
