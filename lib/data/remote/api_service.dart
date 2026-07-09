@@ -1,4 +1,5 @@
 ﻿import 'package:dio/dio.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../core/constants/exam_data.dart';
@@ -8,11 +9,14 @@ class ApiService {
   ApiService._();
   static final ApiService instance = ApiService._();
 
-  static const String baseUrl = 'https://api.example.com/v1';
+  static String get baseUrl =>
+      dotenv.env['YOGYA_API_BASE_URL'] ?? 'http://10.0.2.2:8000/api/v1';
   static const FlutterSecureStorage _storage = FlutterSecureStorage();
 
-  // Set this to false when real backend is available.
-  bool simulateRealtime = true;
+  // Keep the existing offline/simulated app behavior by default. Set
+  // YOGYA_USE_MOCK_API=false with YOGYA_API_BASE_URL to use the FastAPI backend.
+  bool get simulateRealtime =>
+      (dotenv.env['YOGYA_USE_MOCK_API'] ?? 'true').toLowerCase() != 'false';
 
   final Dio _dio = Dio(
     BaseOptions(
@@ -178,6 +182,82 @@ class ApiService {
     }
 
     await _safePost('/eligibility/sync', data: {'results': results});
+  }
+
+  Future<Map<String, dynamic>> checkEligibility({
+    required Map<String, dynamic> student,
+  }) async {
+    if (simulateRealtime) {
+      return _simulate(
+        () => {
+          'summary': {
+            'total_exams_checked': 0,
+            'eligible_count': 0,
+            'registration_open_count': 0,
+          },
+          'results': <Map<String, dynamic>>[],
+        },
+      );
+    }
+
+    final response = await _safePost('/check-eligibility', data: student);
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  Future<Map<String, dynamic>> fetchOpenRegistrations() async {
+    if (simulateRealtime) {
+      return _simulate(
+        () => {
+          'count': 0,
+          'exams': <Map<String, dynamic>>[],
+        },
+      );
+    }
+
+    final response = await _safeGet('/exams/open');
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  Future<Map<String, dynamic>> fetchExamDetail({
+    required String examShortName,
+  }) async {
+    if (simulateRealtime) {
+      return _simulate(
+        () => {
+          'exam_short_name': examShortName,
+          'criteria': <String, dynamic>{},
+          'registration': <String, dynamic>{},
+        },
+      );
+    }
+
+    final response = await _safeGet('/exam/$examShortName');
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  Future<Map<String, dynamic>> validateMarksheetData({
+    required Map<String, dynamic> data,
+    String marksheetType = 'auto',
+  }) async {
+    if (simulateRealtime) {
+      return _simulate(
+        () => {
+          'success': true,
+          'marksheet_type': marksheetType,
+          'confidence': 'MEDIUM',
+          'data': data,
+          'validation_errors': <String>[],
+          'validation_warnings': <String>[],
+          'needs_user_correction': false,
+        },
+      );
+    }
+
+    final response = await _safePost(
+      '/validate-marksheet-data?marksheet_type=$marksheetType',
+      data: data,
+    );
+    return Map<String, dynamic>.from(response.data as Map);
   }
 
   Future<void> syncDeviceToken({

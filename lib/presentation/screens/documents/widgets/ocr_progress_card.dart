@@ -62,18 +62,23 @@ class _OcrProgressCardState extends State<OcrProgressCard>
   // Determine which layer is currently processing
   String get _currentLayer {
     final progress = widget.ocrState.progress;
-    if (progress < 0.25) return 'Layer 1 of 4';
-    if (progress < 0.50) return 'Layer 2 of 4';
-    if (progress < 0.75) return 'Layer 3 of 4';
-    return 'Layer 4 of 4';
+    if (progress < 0.20) return 'Layer 1 of 5';
+    if (progress < 0.40) return 'Layer 2 of 5';
+    if (progress < 0.65) return 'Layer 3 of 5';
+    if (progress < 0.90) return 'Layer 4 of 5';
+    return 'Layer 5 of 5';
   }
 
   String get _layerDescription {
+    if (widget.ocrState.statusMessage.isNotEmpty) {
+      return widget.ocrState.statusMessage;
+    }
     final progress = widget.ocrState.progress;
-    if (progress < 0.25) return 'Image Pre-processing';
-    if (progress < 0.50) return 'Layout Detection';
-    if (progress < 0.75) return 'Text Extraction';
-    return 'Structured Data Parsing';
+    if (progress < 0.20) return 'Preparing document';
+    if (progress < 0.40) return 'Image pre-processing';
+    if (progress < 0.65) return 'Layout detection';
+    if (progress < 0.90) return 'Text extraction and parsing';
+    return 'AI verification';
   }
 
   String get _elapsedText {
@@ -120,38 +125,79 @@ class _OcrProgressCardState extends State<OcrProgressCard>
               // Header row
               Row(
                 children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      gradient: context.colors.primaryGradient,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(Icons.document_scanner_rounded,
-                        color: Colors.white, size: 24),
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: context.colors.primary.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: context.colors.primary.withValues(alpha: 0.3)),
+                        ),
+                        child: Icon(Icons.description_rounded, color: context.colors.primary.withValues(alpha: 0.5), size: 28),
+                      ),
+                      // Scanning laser animation
+                      AnimatedBuilder(
+                        animation: _pulseCtrl,
+                        builder: (context, child) {
+                          return Positioned(
+                            top: 4 + (38 * _pulseCtrl.value),
+                            child: Container(
+                              width: 40,
+                              height: 3,
+                              decoration: BoxDecoration(
+                                color: context.colors.primaryLight,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: context.colors.primaryLight.withValues(alpha: 0.8),
+                                    blurRadius: 6,
+                                    spreadRadius: 2,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: 16),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Extracting Marks Data...',
+                          'AI Engine Parsing...',
                           style: TextStyle(
                             color: context.colors.textPrimary,
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
                             fontFamily: 'Poppins',
+                            letterSpacing: 0.5,
                           ),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Processing $_currentLayer',
-                          style: TextStyle(
-                            color: context.colors.textHint,
-                            fontSize: 12,
-                            fontFamily: 'Poppins',
-                          ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            SizedBox(
+                              width: 10,
+                              height: 10,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: context.colors.primary),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Processing $_currentLayer',
+                                style: TextStyle(
+                                  color: context.colors.textHint,
+                                  fontSize: 12,
+                                  fontFamily: 'Poppins',
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -234,6 +280,30 @@ class _OcrProgressCardState extends State<OcrProgressCard>
                         ),
                       ),
                     ),
+                    AnimatedBuilder(
+                      animation: _pulseCtrl,
+                      builder: (context, _) {
+                        return FractionalTranslation(
+                          translation: Offset(-0.35 + (_pulseCtrl.value * 1.35), 0),
+                          child: FractionallySizedBox(
+                            widthFactor: 0.35,
+                            alignment: Alignment.centerLeft,
+                            child: Container(
+                              height: 10,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Colors.white.withValues(alpha: 0.0),
+                                    Colors.white.withValues(alpha: 0.45),
+                                    Colors.white.withValues(alpha: 0.0),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                   ],
                 ),
               ),
@@ -290,7 +360,10 @@ class _OcrProgressCardState extends State<OcrProgressCard>
                       progress >= 0.75, progress >= 0.50 && progress < 0.75),
                   const SizedBox(width: 6),
                   _buildStepBadge(context, 'Parse',
-                      progress >= 1.0, progress >= 0.75 && progress < 1.0),
+                      progress >= 0.90, progress >= 0.75 && progress < 0.90),
+                  const SizedBox(width: 6),
+                  _buildStepBadge(context, 'AI',
+                      progress >= 1.0, progress >= 0.90 && progress < 1.0),
                 ],
               ),
             ],

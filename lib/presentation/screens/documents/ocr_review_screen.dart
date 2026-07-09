@@ -107,13 +107,21 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
         }
       },
       child: Scaffold(
-        backgroundColor: context.colors.bgDark,
+        backgroundColor: const Color(0xFF0F172A), // Deep modern background
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          title: Text('Review Document', style: TextStyle(color: context.colors.textPrimary)),
+          centerTitle: true,
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.document_scanner_rounded, color: context.colors.primary, size: 24),
+              const SizedBox(width: 8),
+              const Text('AI Data Review', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+            ],
+          ),
           leading: IconButton(
-            icon: Icon(Icons.close, color: context.colors.textPrimary),
+            icon: const Icon(Icons.close, color: Colors.white),
             onPressed: _isSaving ? null : () => Navigator.pop(context, null),
           ),
         ),
@@ -176,16 +184,12 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
             const SizedBox(height: 16),
 
             if (widget.result.docType == 'graduation') ...[
-              if (widget.result.courseName.isNotEmpty) ...[
-                _buildLabelText('Course Name'),
-                _buildDisplayField(_course, Icons.book_outlined),
-                const SizedBox(height: 16),
-              ],
-              if (widget.result.graduationStatus.isNotEmpty) ...[
-                _buildLabelText('Graduation Status'),
-                _buildDisplayField(_status, Icons.info_outline),
-                const SizedBox(height: 16),
-              ],
+              _buildLabelText('Course Name'),
+              _buildDisplayField(_course, Icons.book_outlined),
+              const SizedBox(height: 16),
+              _buildLabelText('Graduation Status'),
+              _buildDisplayField(_status, Icons.info_outline),
+              const SizedBox(height: 16),
             ],
 
             Row(
@@ -321,11 +325,18 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
       onTap: () => _showFullImage(path),
       child: Center(
         child: Container(
-          height: 150,
+          height: 180,
           width: double.infinity,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: context.colors.primary.withValues(alpha: 0.3)),
+            border: Border.all(color: context.colors.primary.withValues(alpha: 0.8), width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: context.colors.primary.withValues(alpha: 0.2),
+                blurRadius: 15,
+                spreadRadius: 2,
+              )
+            ],
             image: DecorationImage(
               image: FileImage(File(path)),
               fit: BoxFit.cover,
@@ -334,15 +345,24 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
           child: Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              color: Colors.black26,
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.black.withValues(alpha: 0.1),
+                  Colors.black.withValues(alpha: 0.6),
+                ],
+              ),
             ),
             child: const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.zoom_in_rounded, color: Colors.white, size: 32),
+                  Icon(Icons.document_scanner_rounded, color: Colors.white, size: 38),
+                  SizedBox(height: 8),
+                  Text('RAW DATA CAPTURE', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
                   SizedBox(height: 4),
-                  Text('Tap to View Document', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                  Text('Tap to expand', style: TextStyle(color: Colors.white70, fontSize: 10)),
                 ],
               ),
             ),
@@ -353,22 +373,46 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
   }
 
   void _showFullImage(String path) {
-    showDialog(
+    showGeneralDialog(
       context: context,
-      builder: (_) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: EdgeInsets.zero,
+      barrierDismissible: true,
+      barrierLabel: 'Close preview',
+      barrierColor: Colors.black.withValues(alpha: 0.92),
+      pageBuilder: (dialogContext, _, __) => Material(
+        color: Colors.transparent,
         child: Stack(
           children: [
-            InteractiveViewer(
-              child: Center(child: Image.file(File(path))),
+            Positioned.fill(
+              child: SafeArea(
+                child: InteractiveViewer(
+                  minScale: 0.5,
+                  maxScale: 5,
+                  child: Center(
+                    child: Image.file(
+                      File(path),
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const Text(
+                        'Preview not available',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ),
             Positioned(
-              top: 40,
-              right: 20,
-              child: IconButton(
-                icon: const Icon(Icons.close, color: Colors.white, size: 30),
-                onPressed: () => Navigator.pop(context),
+              top: MediaQuery.of(dialogContext).padding.top + 12,
+              right: 16,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.7),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: context.colors.primary),
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white, size: 24),
+                  onPressed: () => Navigator.of(dialogContext, rootNavigator: true).pop(),
+                ),
               ),
             ),
           ],
@@ -383,16 +427,16 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
       decoration: BoxDecoration(
         color: context.colors.primary.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: context.colors.primary.withValues(alpha: 0.2)),
+        border: Border.all(color: context.colors.primary.withValues(alpha: 0.4)),
       ),
       child: Row(
         children: [
-          Icon(Icons.verified_user_outlined, color: context.colors.primary),
-          const SizedBox(width: 12),
+          Icon(Icons.auto_awesome_rounded, color: context.colors.primary, size: 28),
+          const SizedBox(width: 16),
           const Expanded(
             child: Text(
-              'OCR has extracted the following details. Please confirm if they are correct.',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+              'AI Engine has processed this document. Review the extracted JSON data fields below.',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, height: 1.4, color: Colors.white),
             ),
           ),
         ],
@@ -402,21 +446,21 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
 
   Widget _buildLockBanner() {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
         color: Colors.orange.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+        border: Border.all(color: Colors.orange.withValues(alpha: 0.5)),
       ),
       child: const Row(
         children: [
-          Icon(Icons.lock_person_outlined, color: Colors.orange, size: 20),
-          SizedBox(width: 12),
+          Icon(Icons.security_rounded, color: Colors.orange, size: 24),
+          SizedBox(width: 14),
           Expanded(
             child: Text(
-              'Name and DOB are fetched from your verified 10th marksheet for security.',
-              style: TextStyle(color: Colors.orange, fontSize: 12, fontWeight: FontWeight.w500),
+              'Identity Locked: Name & DOB are secured against your 10th base document.',
+              style: TextStyle(color: Colors.orange, fontSize: 12, fontWeight: FontWeight.w600, height: 1.4),
             ),
           ),
         ],
@@ -425,42 +469,49 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
   }
 
   Widget _buildDisplayField(TextEditingController controller, IconData icon) {
+    final hasValue = controller.text.isNotEmpty;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: context.colors.bgSurface,
+        color: hasValue ? context.colors.bgSurface.withValues(alpha: 0.5) : Colors.redAccent.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: context.colors.textSecondary.withValues(alpha: 0.1)),
+        border: Border.all(color: hasValue ? context.colors.primary.withValues(alpha: 0.3) : Colors.redAccent.withValues(alpha: 0.5)),
       ),
-      child: Row(
-        children: [
-          Icon(icon, size: 20, color: context.colors.primary.withValues(alpha: 0.7)),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              controller.text.isEmpty ? 'Not found' : controller.text,
-              style: TextStyle(
-                color: controller.text.isEmpty ? context.colors.textSecondary : context.colors.textPrimary,
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+      child: TextField(
+        controller: controller,
+        onChanged: (_) => setState(() {}),
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: hasValue ? Colors.white : Colors.redAccent,
+        ),
+        decoration: InputDecoration(
+          hintText: 'Tap to enter missing data',
+          hintStyle: const TextStyle(
+            color: Colors.redAccent,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
           ),
-        ],
+          prefixIcon: Icon(icon, size: 22, color: hasValue ? context.colors.primary : Colors.redAccent),
+          suffixIcon: hasValue
+              ? Icon(Icons.check_circle_rounded, size: 18, color: context.colors.primary)
+              : const Icon(Icons.error_outline_rounded, size: 18, color: Colors.redAccent),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        ),
       ),
     );
   }
 
   Widget _buildLabelText(String label) {
     return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 8),
+      padding: const EdgeInsets.only(bottom: 6, left: 4),
       child: Text(
-        label,
-        style: TextStyle(
-          color: context.colors.textSecondary,
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-          letterSpacing: 0.5,
+        label.toUpperCase(),
+        style: const TextStyle(
+          color: Colors.white70,
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 1.0,
         ),
       ),
     );

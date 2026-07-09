@@ -118,8 +118,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
 
         final changed = previousProfile == null ||
             previousProfile.id != nextProfile.id ||
+            previousProfile.name != nextProfile.name ||
+            previousProfile.dateOfBirth != nextProfile.dateOfBirth ||
             previousProfile.tenthBoard != nextProfile.tenthBoard ||
+            previousProfile.tenthYear != nextProfile.tenthYear ||
+            previousProfile.tenthPercentage != nextProfile.tenthPercentage ||
             previousProfile.twelfthBoard != nextProfile.twelfthBoard ||
+            previousProfile.twelfthYear != nextProfile.twelfthYear ||
+            previousProfile.twelfthPercentage != nextProfile.twelfthPercentage ||
             previousProfile.gradCourse != nextProfile.gradCourse ||
             previousProfile.gradUniversity != nextProfile.gradUniversity ||
             previousProfile.gradYear != nextProfile.gradYear ||
@@ -171,7 +177,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
         _selectedCategory = profile.category.isNotEmpty ? profile.category : 'General';
         _selectedGender = profile.gender.isNotEmpty ? profile.gender : 'Male';
         _gradStatus = profile.graduationStatus.isNotEmpty ? profile.graduationStatus : 'Pursuing';
-        _selectedQualification = _computeQualDropdown(profile.qualification);
+        _selectedQualification = _computeQualDropdown(
+          profile.qualification,
+          profile.graduationStatus,
+        );
       });
     } else if (user != null) {
       _nameCtrl.text = user.displayName ?? '';
@@ -179,7 +188,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     }
   }
 
-  String? _computeQualDropdown(String saved) {
+  String? _computeQualDropdown(String saved, [String graduationStatus = '']) {
+    if (graduationStatus.toLowerCase() == 'pursuing') return 'UG Pursuing';
+    if (saved.toLowerCase().contains('pursuing') && saved.toLowerCase().contains('grad')) return 'UG Pursuing';
     if (saved.toLowerCase().contains('pg') || saved.toLowerCase().contains('post grad')) return 'PG';
     if (saved.toLowerCase().contains('grad') || saved.toLowerCase().contains('ug')) return 'UG Completed';
     if (saved.toLowerCase().contains('12')) return '12th Pass';
@@ -538,7 +549,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
 
   // ── Qualification Dropdown ─────────────────────────────────────────────────
   Widget _buildQualificationDropdown() {
-    const options = ['10th Pass', '12th Pass', 'UG Completed', 'PG'];
+    const options = ['10th Pass', '12th Pass', 'UG Pursuing', 'UG Completed', 'PG'];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

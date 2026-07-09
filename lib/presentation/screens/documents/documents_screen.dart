@@ -10,10 +10,10 @@ import '../../widgets/common/empty_state_widget.dart';
 import 'widgets/scanned_doc_card.dart';
 import 'widgets/ocr_progress_card.dart';
 import '../../../core/services/ocr_service.dart';
-import '../../../core/services/pdf_parser_service.dart';
 import 'ocr_review_screen.dart';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
+import 'package:path/path.dart' as p;
 import '../../../core/constants/strings.dart';
 import '../../../data/models/academic_doc_model.dart';
 
@@ -79,7 +79,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
                     : doc.docType == 'admit_card'
                         ? 'Admit Card'
                         : 'Document',
-        'type': 'Marksheet',
+        'type': _documentTypeLabel(doc),
         'date':
             '${doc.uploadedAt.day}/${doc.uploadedAt.month}/${doc.uploadedAt.year}',
         'status': doc.isVerified ? 'Verified' : 'Needs Review',
@@ -298,7 +298,8 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
                             icon: doc['icon'],
                             onTap: () => _showDocumentDetails(doc['id']),
                             onDelete: () async {
-                              await HiveService.deleteDoc(doc['id']);
+                              final uid = ref.read(currentUserProvider)?.uid;
+                              await HiveService.deleteDoc(doc['id'], uid: uid);
                               setState(() {});
                             },
                           ),
@@ -346,13 +347,15 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
   }
 
   void _showDocumentDetails(String docId) {
-    final doc = HiveService.getDoc(docId);
+    final uid = ref.read(currentUserProvider)?.uid;
+    final doc = HiveService.getDoc(docId, uid: uid);
     if (doc == null) return;
 
     showDialog(
       context: context,
       builder: (ctx) {
-        if (doc.fileName.isNotEmpty) {
+        final ext = p.extension(doc.fileName).toLowerCase();
+        if (doc.fileName.isNotEmpty && ext != '.pdf') {
           return Dialog(
             backgroundColor: Colors.transparent,
             insetPadding: const EdgeInsets.all(16),
@@ -388,7 +391,11 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
               mainAxisSize: MainAxisSize.min,
               children: [
                 _detailRow('Status', doc.isVerified ? 'Verified' : 'Needs Review', context.colors.textPrimary),
+                _detailRow('File', doc.fileName.isNotEmpty ? p.basename(doc.fileName) : 'Not available', context.colors.textHint),
                 _detailRow('Uploaded At', '${doc.uploadedAt.day}/${doc.uploadedAt.month}/${doc.uploadedAt.year}', context.colors.textHint),
+                if (doc.board.isNotEmpty) _detailRow('Board / University', doc.board, context.colors.textHint),
+                if (doc.year.isNotEmpty) _detailRow('Year', doc.year, context.colors.textHint),
+                if (doc.aggregate.isNotEmpty) _detailRow('Score', doc.aggregate, context.colors.textHint),
                 const Divider(),
                 _detailRow('Extracted Data', '', context.colors.primaryLight),
                 const SizedBox(height: 8),
@@ -583,16 +590,24 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
 
   /// Common post-OCR handler shared between image scan and PDF upload flows.
   Future<void> _handleOcrResult(OcrResult result) async {
-    if (result.docType == '12th' || result.docType == 'graduation') {
+    result = result.copyWith(docType: OcrService.canonicalDocType(result.docType));
+
+    if (result.docType == '12th' || result.docType == 'graduation' || result.docType == 'pg') {
       final uid = ref.read(currentUserProvider)?.uid;
       final allDocs = HiveService.getAllDocs(uid: uid);
-      final has10th = allDocs.any((d) => d.docType == '10th' || d.docType == '10th Pass');
+      final profile = uid != null ? HiveService.getUserProfile(uid) : null;
+      final has10th = allDocs.any((d) => 
+        OcrService.canonicalDocType(d.docType) == '10th' && d.isVerified
+      ) ||
+          (profile?.tenthBoard.trim().isNotEmpty == true &&
+              profile?.tenthYear.trim().isNotEmpty == true);
       if (!has10th) {
+        await _deleteNewestUploadedDoc(result.docType);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: const Text(
-                'Please upload your 10th marksheet first.',
+                'Please upload your 10th marksheet first. We need it as a base identity document.',
                 style: TextStyle(fontFamily: 'Poppins', color: Colors.white),
               ),
               backgroundColor: context.colors.urgencyHigh,
@@ -640,7 +655,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
         warningMsg = 'Mismatch detected! DOB does not match your 10th base document.';
       }
       if (!isMismatch && profile.name.trim().isNotEmpty && result.candidateName.trim().isNotEmpty) {
-        if (!PdfParserService.namesMatch(profile.name, result.candidateName)) {
+        if (!OcrService.namesMatch(profile.name, result.candidateName)) {
           isMismatch = true;
           warningMsg = 'Name mismatch detected! "${result.candidateName}" does not match the name on your 10th marksheet.';
         }
@@ -650,11 +665,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
     final ocrState = ref.read(ocrProvider);
     // User requested to ALWAYS show extracted details and ask if it is correct,
     // and handle situations where fields are missing.
-    final hasMissingFields = result.candidateName.isEmpty || 
-                             result.dateOfBirth.isEmpty || 
-                             result.university.isEmpty || 
-                             result.aggregate.isEmpty || 
-                             result.subjectMarks.isEmpty;
+    final hasMissingFields = _hasMissingImportantFields(result);
 
     final forceReview = ocrState.needsReview || isMismatch || hasMissingFields || true; // Always force review as requested
 
@@ -702,15 +713,23 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
       if (action == 'save') {
         final uid = ref.read(currentUserProvider)?.uid;
         final allDocs = HiveService.getAllDocs(uid: uid);
-        final sameTypeDocs = allDocs.where((d) => d.docType == result.docType).toList();
+        final sameTypeDocs = allDocs
+            .where((d) => OcrService.canonicalDocType(d.docType) == result.docType)
+            .toList();
         
         AcademicDocModel? docToSave;
         
-        // Find the newest unverified doc to keep
-        final unverifiedDocs = sameTypeDocs.where((d) => !d.isVerified).toList();
-        if (unverifiedDocs.isNotEmpty) {
-          docToSave = unverifiedDocs.last;
+        if (sameTypeDocs.isNotEmpty) {
+          sameTypeDocs.sort((a, b) => a.uploadedAt.compareTo(b.uploadedAt));
+          docToSave = sameTypeDocs.last;
           docToSave.isVerified = true;
+          docToSave.docType = result.docType;
+          docToSave.board = result.board;
+          docToSave.year = result.year;
+          docToSave.aggregate = result.aggregate;
+          docToSave.stream = result.stream;
+          docToSave.extractedText = result.rawText;
+          docToSave.confidence = 1.0;
           await HiveService.saveDoc(docToSave, uid: uid);
         }
         
@@ -726,7 +745,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
         
         // Force profile reload so it shows the new data
         if (uid != null) {
-          ref.read(profileNotifierProvider.notifier).loadProfile(uid);
+          await ref.read(profileNotifierProvider.notifier).refreshLocalProfile(uid);
         }
 
         if (mounted) {
@@ -741,13 +760,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
           );
         }
       } else if (action == 'reupload' || action == 'cancel') {
-        final uid = ref.read(currentUserProvider)?.uid;
-        final allDocs = HiveService.getAllDocs(uid: uid);
-        // Find the newly added unverified doc and delete it so it doesn't clutter
-        final unverifiedDocs = allDocs.where((d) => d.docType == result.docType && !d.isVerified).toList();
-        if (unverifiedDocs.isNotEmpty) {
-          await HiveService.deleteDoc(unverifiedDocs.last.id, uid: uid);
-        }
+        await _deleteNewestUploadedDoc(result.docType);
         
         ref.read(ocrProvider.notifier).reset();
         
@@ -766,6 +779,46 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
         }
       }
       return;
+    }
+  }
+
+  String _documentTypeLabel(AcademicDocModel doc) {
+    final ext = p.extension(doc.fileName).toUpperCase().replaceAll('.', '');
+    final kind = ext.isEmpty ? 'Document' : ext;
+    final score = doc.aggregate.isNotEmpty ? ' - ${doc.aggregate}' : '';
+    return '$kind$score';
+  }
+
+  bool _hasMissingImportantFields(OcrResult result) {
+    if (result.docType == '10th') {
+      return result.candidateName.isEmpty ||
+          result.dateOfBirth.isEmpty ||
+          result.year.isEmpty ||
+          result.aggregate.isEmpty;
+    }
+    if (result.docType == '12th') {
+      return result.year.isEmpty || result.aggregate.isEmpty;
+    }
+    if (result.docType == 'graduation' || result.docType == 'pg') {
+      return result.university.isEmpty ||
+          result.year.isEmpty ||
+          result.aggregate.isEmpty ||
+          result.courseName.isEmpty;
+    }
+    return result.docType == 'unknown';
+  }
+
+  Future<void> _deleteNewestUploadedDoc(String docType) async {
+    final uid = ref.read(currentUserProvider)?.uid;
+    final allDocs = HiveService.getAllDocs(uid: uid);
+    final docs = allDocs
+        .where((d) =>
+            OcrService.canonicalDocType(d.docType) ==
+                OcrService.canonicalDocType(docType))
+        .toList()
+      ..sort((a, b) => a.uploadedAt.compareTo(b.uploadedAt));
+    if (docs.isNotEmpty) {
+      await HiveService.deleteDoc(docs.last.id, uid: uid);
     }
   }
 

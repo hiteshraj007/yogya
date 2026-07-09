@@ -250,6 +250,15 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
     );
   }
 
+  Future<void> refreshLocalProfile(String uid) async {
+    final profile = HiveService.getUserProfile(uid);
+    state = state.copyWith(
+      isLoading: false,
+      profile: profile,
+      clearProfile: profile == null,
+    );
+  }
+
   void clearProfile() {
     state = const ProfileState();
   }
@@ -267,6 +276,8 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
     String tenthBoard = '', String tenthYear = '', String tenthPercentage = '',
     String twelfthBoard = '', String twelfthYear = '', String twelfthPercentage = '',
     String gradCourse = '', String gradUniversity = '', String gradYear = '', String gradPercentage = '', String graduationStatus = '',
+    bool? isVerified,
+    double? confidenceLevel,
   }) async {
     state = state.copyWith(isLoading: true, isSaved: false, clearError: true);
     try {
@@ -295,6 +306,22 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
         computedQual = '10th Pass';
       }
 
+      final legacyUniversity = gradUniversity.trim().isNotEmpty
+          ? gradUniversity.trim()
+          : twelfthBoard.trim().isNotEmpty
+              ? twelfthBoard.trim()
+              : tenthBoard.trim();
+      final legacyPassingYear = gradYear.trim().isNotEmpty
+          ? gradYear.trim()
+          : twelfthYear.trim().isNotEmpty
+              ? twelfthYear.trim()
+              : tenthYear.trim();
+      final legacyPercentage = gradPercentage.trim().isNotEmpty
+          ? gradPercentage.trim()
+          : twelfthPercentage.trim().isNotEmpty
+              ? twelfthPercentage.trim()
+              : tenthPercentage.trim();
+
       final profile = UserProfileModel(
         id: uid, name: name, email: email, category: category, gender: gender,
         dateOfBirth: dateOfBirth, phone: phone, stateOfDomicile: stateOfDomicile,
@@ -304,7 +331,11 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
         gradCourse: gradCourse, gradUniversity: gradUniversity, gradYear: gradYear, gradPercentage: gradPercentage,
         graduationStatus: graduationStatus,
         qualification: computedQual,
-        isVerified: existing?.isVerified ?? false, confidenceLevel: existing?.confidenceLevel ?? 0.0,
+        university: legacyUniversity,
+        passingYear: legacyPassingYear,
+        percentage: legacyPercentage,
+        isVerified: isVerified ?? existing?.isVerified ?? false,
+        confidenceLevel: confidenceLevel ?? existing?.confidenceLevel ?? 0.0,
       );
       profile.profileCompletion = profile.calculateCompletion();
       await HiveService.saveUserProfile(profile);
@@ -411,6 +442,8 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       gradYear:        gYear,
       gradPercentage:  gPercent,
       graduationStatus: gStatus,
+      isVerified: isVerified,
+      confidenceLevel: confidenceLevel,
     );
   }
 

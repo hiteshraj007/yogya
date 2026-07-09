@@ -113,7 +113,10 @@ class HiveService {
     if (!Hive.isBoxOpen(_docsBox)) return [];
     if (uid == null) return _academicDocsBox.values.toList();
     return _academicDocsBox.toMap().entries
-        .where((e) => e.key.toString().startsWith('${uid}_'))
+        .where((e) {
+          final key = e.key.toString();
+          return key.startsWith('${uid}_') || !key.contains('_');
+        })
         .map((e) => e.value)
         .toList();
   }
@@ -121,13 +124,17 @@ class HiveService {
   static AcademicDocModel? getDoc(String id, {String? uid}) {
     if (!Hive.isBoxOpen(_docsBox)) return null;
     final key = uid != null ? '${uid}_$id' : id;
-    return _academicDocsBox.get(key);
+    return _academicDocsBox.get(key) ?? _academicDocsBox.get(id);
   }
 
   static Future<void> deleteDoc(String id, {String? uid}) async {
     await _openDocsBoxSafe();
     final key = uid != null ? '${uid}_$id' : id;
-    await _academicDocsBox.delete(key);
+    if (_academicDocsBox.containsKey(key)) {
+      await _academicDocsBox.delete(key);
+    } else {
+      await _academicDocsBox.delete(id);
+    }
     if (uid != null) {
       await FirestoreSyncService.deleteDocFromCloud(uid, id);
     }
