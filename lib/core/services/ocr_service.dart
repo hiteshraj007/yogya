@@ -721,11 +721,95 @@ class OcrResult {
         subjectsJson = '',
         confidence = 0.0,
         imagePath = null;
+
+  OcrResult copyWith({
+    bool? success,
+    String? rawText,
+    String? docType,
+    String? board,
+    String? year,
+    String? aggregate,
+    String? stream,
+    String? dateOfBirth,
+    String? university,
+    String? courseName,
+    String? graduationStatus,
+    String? examName,
+    String? rollNumber,
+    String? registrationNumber,
+    String? candidateName,
+    String? fatherName,
+    String? motherName,
+    Map<String, String>? subjectMarks,
+    String? subjectsJson,
+    double? confidence,
+    String? imagePath,
+    String? errorMessage,
+  }) {
+    return OcrResult(
+      success: success ?? this.success,
+      rawText: rawText ?? this.rawText,
+      docType: docType ?? this.docType,
+      board: board ?? this.board,
+      year: year ?? this.year,
+      aggregate: aggregate ?? this.aggregate,
+      stream: stream ?? this.stream,
+      dateOfBirth: dateOfBirth ?? this.dateOfBirth,
+      university: university ?? this.university,
+      courseName: courseName ?? this.courseName,
+      graduationStatus: graduationStatus ?? this.graduationStatus,
+      examName: examName ?? this.examName,
+      rollNumber: rollNumber ?? this.rollNumber,
+      registrationNumber: registrationNumber ?? this.registrationNumber,
+      candidateName: candidateName ?? this.candidateName,
+      fatherName: fatherName ?? this.fatherName,
+      motherName: motherName ?? this.motherName,
+      subjectMarks: subjectMarks ?? this.subjectMarks,
+      subjectsJson: subjectsJson ?? this.subjectsJson,
+      confidence: confidence ?? this.confidence,
+      imagePath: imagePath ?? this.imagePath,
+      errorMessage: errorMessage ?? this.errorMessage,
+    );
+  }
 }
 
 class OcrService {
   OcrService._();
   static final OcrService instance = OcrService._();
+
+  /// Normalizes doc type strings to canonical values.
+  static String canonicalDocType(String raw) {
+    final l = raw.toLowerCase().trim();
+    if (l.contains('10') || l == 'sslc' || l == 'matric' || l == 'secondary') return '10th';
+    if (l.contains('12') || l == 'hsc' || l == 'intermediate' || l == 'senior secondary' || l == 'higher secondary') return '12th';
+    // PG check MUST come before graduation — 'post graduate' contains 'grad'
+    if (l.contains('master') || l.contains('m.tech') || l == 'pg' || l.contains('post grad') || l.contains('post-grad')) return 'pg';
+    if (l.contains('grad') || l.contains('bachelor') || l.contains('b.tech') || l.contains('degree') || l == 'ug') return 'graduation';
+    if (l.contains('diploma') || l.contains('polytechnic')) return 'diploma';
+    if (l == 'admit_card') return 'admit_card';
+    return raw;
+  }
+
+  /// Checks if two name strings likely refer to the same person.
+  static bool namesMatch(String a, String b) {
+    if (a.isEmpty || b.isEmpty) return false;
+    final na = normaliseNameForComparison(a);
+    final nb = normaliseNameForComparison(b);
+    if (na == nb) return true;
+    // Check if one name contains all words of the other
+    final wa = na.split(RegExp(r'\s+'));
+    final wb = nb.split(RegExp(r'\s+'));
+    if (wa.length >= 2 && wb.length >= 2) {
+      final commonWords = wa.where((w) => wb.contains(w)).length;
+      return commonWords >= 2;
+    }
+    return false;
+  }
+
+  /// Normalizes a name string for comparison purposes (lowercase, trim, letters only)
+  static String normaliseNameForComparison(String name) {
+    return name.toLowerCase().replaceAll(RegExp(r'[^a-z ]'), '').trim();
+  }
 
   final _textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
   final _imagePicker = ImagePicker();
@@ -901,10 +985,39 @@ class OcrService {
 
   String _extractBoard(String text) {
     final lower = text.toLowerCase();
-    if ((lower.contains('माध्यमिक शिक्षा बोर्ड') && lower.contains('राजस्थान')) || lower.contains('board of secondary education, rajasthan') || lower.contains('rbse')) return 'RBSE (Rajasthan)';
+    // Central Boards
     if (lower.contains('cbse') || lower.contains('central board of secondary')) return 'CBSE';
-    if (lower.contains('icse') || lower.contains('council for the indian')) return 'ICSE';
+    if (lower.contains('icse') || lower.contains('council for the indian school')) return 'ICSE';
     if (lower.contains('isc') || lower.contains('indian school certificate')) return 'ISC';
+    if (lower.contains('nios') || lower.contains('national institute of open schooling')) return 'NIOS';
+    // State Boards
+    if ((lower.contains('माध्यमिक शिक्षा बोर्ड') && lower.contains('राजस्थान')) || lower.contains('board of secondary education, rajasthan') || lower.contains('rbse')) return 'RBSE (Rajasthan)';
+    if (lower.contains('madhyamik shiksha parishad') || lower.contains('board of high school and intermediate education') || lower.contains('upmsp') || (lower.contains('uttar pradesh') && lower.contains('board'))) return 'UP Board';
+    if (lower.contains('maharashtra') && lower.contains('board')) return 'Maharashtra Board';
+    if (lower.contains('west bengal') && lower.contains('secondary')) return 'WBBSE (West Bengal)';
+    if (lower.contains('tamilnadu') || (lower.contains('tamil') && lower.contains('nadu'))) return 'Tamil Nadu Board';
+    if (lower.contains('government of kerala') || (lower.contains('kerala') && lower.contains('examination'))) return 'Kerala Board';
+    if (lower.contains('andhra pradesh') || lower.contains('bseap')) return 'AP Board';
+    if (lower.contains('telangana') && lower.contains('board')) return 'Telangana Board';
+    if (lower.contains('assam') && lower.contains('secondary')) return 'SEBA (Assam)';
+    if (lower.contains('chhattisgarh') || lower.contains('chattisgarh') || lower.contains('cgbse')) return 'CGBSE (Chhattisgarh)';
+    if (lower.contains('gujarat') || lower.contains('gseb')) return 'GSEB (Gujarat)';
+    if (lower.contains('haryana') && lower.contains('board')) return 'HBSE (Haryana)';
+    if (lower.contains('punjab') && lower.contains('education board')) return 'PSEB (Punjab)';
+    if (lower.contains('odisha') || lower.contains('bse odisha')) return 'BSE Odisha';
+    if (lower.contains('jharkhand') || (lower.contains('jac') && lower.contains('ranchi'))) return 'JAC (Jharkhand)';
+    if (lower.contains('tripura') && lower.contains('board')) return 'TBSE (Tripura)';
+    if (lower.contains('uttarakhand') || lower.contains('uttrakhand') || lower.contains('ubse')) return 'UBSE (Uttarakhand)';
+    if (lower.contains('bihar') && lower.contains('board')) return 'BSEB (Bihar)';
+    if (lower.contains('madhya pradesh') || lower.contains('mpbse')) return 'MPBSE (MP)';
+    if (lower.contains('karnataka') && lower.contains('secondary')) return 'Karnataka Board';
+    if (lower.contains('himachal') || lower.contains('hpbose')) return 'HPBOSE (Himachal)';
+    if (lower.contains('jammu') || lower.contains('kashmir') || lower.contains('jkbose')) return 'JKBOSE';
+    if (lower.contains('goa') && lower.contains('board')) return 'Goa Board';
+    if (lower.contains('meghalaya') || lower.contains('mbose')) return 'MBOSE (Meghalaya)';
+    if (lower.contains('nagaland') || lower.contains('nbse')) return 'NBSE (Nagaland)';
+    if (lower.contains('sikkim') || lower.contains('sbse')) return 'Sikkim Board';
+    if (lower.contains('open school') || lower.contains('open board')) return 'Open Board';
     return '';
   }
 
