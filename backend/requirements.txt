@@ -22,8 +22,8 @@ slowapi>=0.1.9
 sentry-sdk[fastapi]>=2.0.0
 
 # For playwright
-playwright-stealth>=2.5.0
-playwright-community>=1.47.1
+playwright-stealth>=2.0.0
+playwright-community>=1.47.0
 
 # Testing
 pytest>=8.0.0
