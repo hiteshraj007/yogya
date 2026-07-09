@@ -1,5 +1,4 @@
-package com.example.yogya_app
-
+package com.yogya.app
 import io.flutter.embedding.android.FlutterActivity
 
 class MainActivity : FlutterActivity()

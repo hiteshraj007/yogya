@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -5,8 +8,20 @@ plugins {
     id("com.google.gms.google-services")
 }
 
+// ─── Keystore signing config (for release builds) ───
+// Create android/key.properties with:
+//   storePassword=<your_password>
+//   keyPassword=<your_password>
+//   keyAlias=yogya
+//   storeFile=<path_to_keystore.jks>
+val keystorePropertiesFile = rootProject.file("key.properties")
+val keystoreProperties = Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+}
+
 android {
-    namespace = "com.example.yogya_app"
+    namespace = "com.yogya.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -21,16 +36,41 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.yogya_app"
+        applicationId = "com.yogya.app"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
+    // ─── Signing configs ───
+    signingConfigs {
+        if (keystorePropertiesFile.exists()) {
+            create("release") {
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+            }
+        }
+    }
+
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("debug")
+            // Use release keystore if available, otherwise debug (for CI builds)
+            signingConfig = if (keystorePropertiesFile.exists()) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
+
+            // ─── R8/ProGuard: minify + shrink for production ───
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
 }
@@ -43,102 +83,3 @@ dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 }
 
-
-//
-//
-//plugins {
-//    id("com.android.application")
-//    id("kotlin-android")
-//    id("dev.flutter.flutter-gradle-plugin")
-//    id("com.google.gms.google-services")
-//}
-//
-//android {
-//    namespace = "com.attempttracker.app"
-//    compileSdk = flutter.compileSdkVersion
-//    ndkVersion = "27.0.12077973"
-//
-//    compileOptions {
-//        sourceCompatibility = JavaVersion.VERSION_17
-//        targetCompatibility = JavaVersion.VERSION_17
-//    }
-//
-//    kotlinOptions {
-//        jvmTarget = JavaVersion.VERSION_17.toString()
-//    }
-//
-//    defaultConfig {
-//        applicationId = "com.attempttracker.app"
-//        minSdk = flutter.minSdkVersion
-//        targetSdk = flutter.targetSdkVersion
-//        versionCode = flutter.versionCode
-//        versionName = flutter.versionName
-//        multiDexEnabled = true
-//    }
-//
-//    buildTypes {
-//        release {
-//            signingConfig = signingConfigs.getByName("debug")
-//            isMinifyEnabled = false
-//            isShrinkResources = false
-//        }
-//    }
-//}
-//
-//flutter {
-//    source = "../.."
-//}
-//
-//dependencies {
-//    implementation(platform("com.google.firebase:firebase-bom:32.7.4"))
-//    implementation("com.google.firebase:firebase-auth-ktx")
-//    implementation("com.google.firebase:firebase-firestore-ktx")
-//    implementation("com.google.firebase:firebase-messaging-ktx")
-//    implementation("androidx.multidex:multidex:2.0.1")
-//}
-// plugins {
-//     id("com.android.application")
-//     id("kotlin-android")
-//     id("dev.flutter.flutter-gradle-plugin")
-//     id("com.google.gms.google-services")
-// }
-
-// android {
-//     namespace = "com.attempttracker.app"
-//     compileSdk = flutter.compileSdkVersion
-//     ndkVersion = flutter.ndkVersion
-
-//     compileOptions {
-//         sourceCompatibility = JavaVersion.VERSION_17
-//         targetCompatibility = JavaVersion.VERSION_17
-//     }
-
-//     kotlinOptions {
-//         jvmTarget = JavaVersion.VERSION_17.toString()
-//     }
-
-//     defaultConfig {
-//         applicationId = "com.yogya.app"
-//         minSdk = 21
-//         targetSdk = flutter.targetSdkVersion
-//         versionCode = flutter.versionCode
-//         versionName = flutter.versionName
-//     }
-
-//     buildTypes {
-//         release {
-//             signingConfig = signingConfigs.getByName("debug")
-//         }
-//     }
-// }
-
-// flutter {
-//     source = "../.."
-// }
-
-// dependencies {
-//     implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
-//     implementation("com.google.firebase:firebase-auth")
-//     implementation("com.google.firebase:firebase-firestore")
-//     implementation("com.google.firebase:firebase-messaging")
-// }
