@@ -171,31 +171,31 @@ async def load_all_criteria() -> list[ExamCriteria]:
 
     criteria_list = []
     for row in rows:
-        reg_row = await fetch_one("SELECT * FROM exam_registration_status WHERE exam_short_name = %s", row["exam_short_name"])
-        reg_status = RegistrationStatus()
-        if reg_row:
-            reg_status = RegistrationStatus(
-                registration_open=reg_row.get("registration_open", False),
-                registration_start=reg_row.get("registration_start"),
-                registration_end=reg_row.get("registration_end"),
-                exam_date_text=reg_row.get("exam_date_text"),
-                admit_card_date=reg_row.get("admit_card_date"),
-                result_date=reg_row.get("result_date"),
-                apply_url=reg_row.get("apply_url"),
-                official_url=reg_row.get("official_url"),
-                notification_pdf_url=reg_row.get("notification_pdf_url"),
-                correction_window_start=reg_row.get("correction_window_start"),
-                correction_window_end=reg_row.get("correction_window_end"),
-                last_scraped_at=reg_row.get("last_scraped_at"),
-            )
-        
-        row = dict(row)
-        row["registration"] = reg_status.model_dump()
-        row["exam_full_name"] = row.get("exam_full_name") or row.get("exam_short_name") or "Unknown Exam"
-        row["conducting_body"] = row.get("conducting_body") or ""
-        row["exam_category"] = row.get("exam_category") or "OTHER"
-        row["min_education"] = row.get("min_education") or "10TH"
         try:
+            reg_row = await fetch_one("SELECT * FROM exam_registration_status WHERE exam_short_name = %s", row["exam_short_name"])
+            reg_status = RegistrationStatus()
+            if reg_row:
+                reg_status = RegistrationStatus(
+                    registration_open=reg_row.get("registration_open", False),
+                    registration_start=reg_row.get("registration_start"),
+                    registration_end=reg_row.get("registration_end"),
+                    exam_date_text=reg_row.get("exam_date_text"),
+                    admit_card_date=reg_row.get("admit_card_date"),
+                    result_date=reg_row.get("result_date"),
+                    apply_url=reg_row.get("apply_url"),
+                    official_url=reg_row.get("official_url"),
+                    notification_pdf_url=reg_row.get("notification_pdf_url"),
+                    correction_window_start=reg_row.get("correction_window_start"),
+                    correction_window_end=reg_row.get("correction_window_end"),
+                    last_scraped_at=reg_row.get("last_scraped_at"),
+                )
+
+            row = dict(row)
+            row["registration"] = reg_status.model_dump()
+            row["exam_full_name"] = row.get("exam_full_name") or row.get("exam_short_name") or "Unknown Exam"
+            row["conducting_body"] = row.get("conducting_body") or ""
+            row["exam_category"] = row.get("exam_category") or "OTHER"
+            row["min_education"] = row.get("min_education") or "10TH"
             # Handle JSONB fields correctly
             for field in ["required_stream", "required_subjects", "required_degree", "additional_rules"]:
                 if isinstance(row.get(field), str):
@@ -299,8 +299,12 @@ async def exam_detail(exam_short_name: str) -> dict[str, Any]:
         return cached
 
     criteria_list = await load_all_criteria()
-    engine = EligibilityEngine(criteria_list)
-    criteria = engine.get_detail(exam_short_name)
+    # Find criteria directly — EligibilityEngine has no get_detail() method
+    exam_name_lower = exam_short_name.strip().lower()
+    criteria = next(
+        (c for c in criteria_list if c.exam_short_name.strip().lower() == exam_name_lower),
+        None,
+    )
     
     if criteria is None:
         raise HTTPException(status_code=404, detail="Exam not found")
