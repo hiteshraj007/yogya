@@ -332,10 +332,13 @@ async def open_exams() -> dict[str, Any]:
 
 @app.get("/api/v1/exam/{exam_short_name}")
 async def exam_detail(exam_short_name: str) -> dict[str, Any]:
-    cache_key = f"eligibility:{exam_short_name}"
-    cached = await cache.get(cache_key)
-    if cached:
-        return cached
+    try:
+        cache_key = f"eligibility:{exam_short_name}"
+        cached = await cache.get(cache_key)
+        if cached:
+            return cached
+    except Exception:
+        pass  # Cache miss is fine
 
     criteria_list = await load_all_criteria()
     # Find criteria directly — EligibilityEngine has no get_detail() method
@@ -348,48 +351,62 @@ async def exam_detail(exam_short_name: str) -> dict[str, Any]:
     if criteria is None:
         raise HTTPException(status_code=404, detail="Exam not found")
 
-    res = {
-        "exam_short_name": criteria.exam_short_name,
-        "exam_full_name": criteria.exam_full_name,
-        "conducting_body": criteria.conducting_body,
-        "exam_category": criteria.exam_category,
-        "criteria": {
-            "min_education": criteria.min_education.value,
-            "required_stream": criteria.required_stream,
-            "required_subjects": criteria.required_subjects,
-            "required_degree": criteria.required_degree,
-            "age_limits": {
-                "general": {
-                    "min": criteria.min_age,
-                    "max": criteria.max_age_general,
+    try:
+        # Safely get min_education value (might be enum or string)
+        min_edu = criteria.min_education
+        min_edu_str = min_edu.value if hasattr(min_edu, 'value') else str(min_edu)
+
+        res = {
+            "exam_short_name": criteria.exam_short_name,
+            "exam_full_name": criteria.exam_full_name,
+            "conducting_body": criteria.conducting_body,
+            "exam_category": criteria.exam_category,
+            "criteria": {
+                "min_education": min_edu_str,
+                "required_stream": criteria.required_stream,
+                "required_subjects": criteria.required_subjects,
+                "required_degree": criteria.required_degree,
+                "age_limits": {
+                    "general": {
+                        "min": criteria.min_age,
+                        "max": criteria.max_age_general,
+                    },
+                    "obc": {"min": criteria.min_age, "max": criteria.max_age_obc},
+                    "sc_st": {"min": criteria.min_age, "max": criteria.max_age_sc_st},
                 },
-                "obc": {"min": criteria.min_age, "max": criteria.max_age_obc},
-                "sc_st": {"min": criteria.min_age, "max": criteria.max_age_sc_st},
+                "attempt_limits": {
+                    "general": criteria.max_attempts_general,
+                    "obc": criteria.max_attempts_obc,
+                    "sc_st": criteria.max_attempts_sc_st,
+                },
+                "min_percentage": {
+                    "general": criteria.min_percentage_general,
+                    "obc": criteria.min_percentage_obc,
+                    "sc_st": criteria.min_percentage_sc_st,
+                    "ews": criteria.min_percentage_ews,
+                },
             },
-            "attempt_limits": {
-                "general": criteria.max_attempts_general,
-                "obc": criteria.max_attempts_obc,
-                "sc_st": criteria.max_attempts_sc_st,
+            "registration": {
+                "open": getattr(criteria.registration, 'registration_open', False),
+                "start": criteria.registration.registration_start.isoformat() if getattr(criteria.registration, 'registration_start', None) else None,
+                "end": criteria.registration.registration_end.isoformat() if getattr(criteria.registration, 'registration_end', None) else None,
+                "apply_url": getattr(criteria.registration, 'apply_url', None),
             },
-            "min_percentage": {
-                "general": criteria.min_percentage_general,
-                "obc": criteria.min_percentage_obc,
-                "sc_st": criteria.min_percentage_sc_st,
-                "ews": criteria.min_percentage_ews,
-            },
-        },
-        "registration": {
-            "open": criteria.registration.registration_open,
-            "start": criteria.registration.registration_start.isoformat() if criteria.registration.registration_start else None,
-            "end": criteria.registration.registration_end.isoformat() if criteria.registration.registration_end else None,
-            "apply_url": criteria.registration.apply_url,
-        },
-        "notification_year": criteria.notification_year,
-        "source_pdf_url": criteria.source_pdf_url,
-        "last_verified": criteria.verified_at.isoformat() if criteria.verified_at else None,
-    }
-    await cache.set(cache_key, res, 6 * 3600)  # 6 hours
-    return res
+            "notification_year": criteria.notification_year,
+            "source_pdf_url": criteria.source_pdf_url,
+            "last_verified": criteria.verified_at.isoformat() if criteria.verified_at else None,
+        }
+        try:
+            await cache.set(cache_key, res, 6 * 3600)
+        except Exception:
+            pass
+        return res
+    except Exception as e:
+        import traceback
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e), "traceback": traceback.format_exc()},
+        )
 
 
 @app.post("/api/v1/extract-marksheet")
