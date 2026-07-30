@@ -158,6 +158,45 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization", "X-Request-ID"],
 )
 
+@app.get("/api/v1/debug/criteria")
+async def debug_criteria():
+    """Temporary debug endpoint to see actual DB errors."""
+    import traceback
+    result = {"step": "start", "errors": []}
+    try:
+        result["step"] = "fetching rows"
+        rows = await fetch_all("SELECT * FROM exam_criteria WHERE is_active = TRUE")
+        result["row_count"] = len(rows) if rows else 0
+        if rows:
+            result["first_row_keys"] = list(dict(rows[0]).keys())
+            result["first_row_name"] = rows[0].get("exam_short_name", "UNKNOWN")
+            # Try parsing first row
+            result["step"] = "parsing first row"
+            row = dict(rows[0])
+            result["raw_min_education"] = str(row.get("min_education"))
+            
+            reg_row = await fetch_one("SELECT * FROM exam_registration_status WHERE exam_short_name = %s", row["exam_short_name"])
+            result["reg_row_found"] = reg_row is not None
+            
+            reg_status = RegistrationStatus()
+            row["registration"] = reg_status.model_dump()
+            row["exam_full_name"] = row.get("exam_full_name") or "Unknown"
+            row["conducting_body"] = row.get("conducting_body") or ""
+            row["exam_category"] = row.get("exam_category") or "OTHER"
+            row["min_education"] = row.get("min_education") or "10TH"
+            for field in ["required_stream", "required_subjects", "required_degree", "additional_rules"]:
+                if isinstance(row.get(field), str):
+                    row[field] = json.loads(row[field])
+            
+            result["step"] = "creating ExamCriteria"
+            criteria = ExamCriteria(**row)
+            result["step"] = "success"
+            result["parsed_name"] = criteria.exam_short_name
+    except Exception as e:
+        result["error"] = str(e)
+        result["traceback"] = traceback.format_exc()
+    return result
+
 
 async def load_all_criteria() -> list[ExamCriteria]:
     try:
