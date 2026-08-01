@@ -23,21 +23,18 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
-        working-directory: yogya
 
       - name: Analyze code
         run: flutter analyze --no-fatal-infos
-        working-directory: yogya
 
       - name: Run tests with coverage
         run: flutter test --coverage
-        working-directory: yogya
 
       - name: Upload coverage to Codecov
         if: github.event_name == 'push'
         uses: codecov/codecov-action@v4
         with:
-          file: yogya/coverage/lcov.info
+          file: coverage/lcov.info
           flags: flutter
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
@@ -66,28 +63,25 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
-        working-directory: yogya
 
       - name: Create .env file
         run: |
           echo "GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}" > .env
           echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> .env
-        working-directory: yogya
 
       - name: Build APK (release)
         run: flutter build apk --release --obfuscate --split-debug-info=build/debug-info
-        working-directory: yogya
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: yogya-release-apk
-          path: yogya/build/app/outputs/flutter-apk/app-release.apk
+          path: build/app/outputs/flutter-apk/app-release.apk
           retention-days: 30
 
       - name: Upload debug symbols (for Sentry)
         uses: actions/upload-artifact@v4
         with:
           name: debug-symbols
-          path: yogya/build/debug-info/
+          path: build/debug-info/
           retention-days: 90
